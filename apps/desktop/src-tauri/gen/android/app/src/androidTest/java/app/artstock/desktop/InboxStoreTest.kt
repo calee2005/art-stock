@@ -34,7 +34,7 @@ class InboxStoreTest {
     fun rejectsPathTraversalNames() {
         val ctx = InstrumentationRegistry.getInstrumentation().targetContext
         val dest = InboxStore.ingestBytes(ctx, "../escape.png", byteArrayOf(1, 2, 3))
-        assertEquals("__escape.png", dest.name)
+        assertEquals("escape.png", dest.name)
         assertTrue(dest.parentFile?.absolutePath?.endsWith("/inbox") == true)
         dest.delete()
     }
