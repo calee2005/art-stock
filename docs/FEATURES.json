@@ -219,7 +219,7 @@
       "id": "F-021",
       "name": "Android Keystore 存远端密钥",
       "phase": "P2",
-      "status": "blocked",
+      "status": "doing",
       "dependsOn": ["F-005", "F-004"],
       "apps": ["android"],
       "designDoc": "docs/03-features/16-android-pad.md",
