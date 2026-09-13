@@ -262,7 +262,7 @@
       "id": "F-030",
       "name": "素材库导入与缩略图",
       "phase": "P3",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-012"],
       "apps": ["web", "desktop"],
       "designDoc": "docs/03-features/04-assets.md",
@@ -271,7 +271,7 @@
         "桌面生成 thumb.webp 并持锁上传",
         "默认不同步原图到所有设备磁盘"
       ],
-      "notes": ""
+      "notes": "importAsset via withRemoteLock writes blobs + assets/items/{id}/meta.json + thumb.webp; DEFAULT_ASSET_CACHE_POLICY.cacheOriginals=false; desktop generateThumbWebp/thumb_generate."
     },
     {
       "id": "F-031",

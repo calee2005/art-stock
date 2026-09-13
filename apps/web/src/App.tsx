@@ -36,6 +36,9 @@ import {
   listSnapshots,
   rollbackBranch,
   switchDefaultBranch,
+  importAsset,
+  listAssets,
+  PLACEHOLDER_WEBP,
   type ImportQueue,
   type SyncState,
   type ObjectStore,
@@ -45,6 +48,7 @@ import {
   type KanbanItem,
   type Snapshot,
   type BranchPointer,
+  type AssetItem,
 } from "@art-stock/core";
 import {
   TabletShell,
@@ -125,6 +129,7 @@ export function App() {
     height: typeof window === "undefined" ? 768 : window.innerHeight,
   }));
   const [pane, setPane] = useState<NavId>("library");
+  const [assets, setAssets] = useState<AssetItem[]>([]);
   const device = useMemo(() => deviceIdentity(storage), []);
   const preview = useMemo(
     () => protocolRoot(form.prefix),
@@ -510,6 +515,62 @@ export function App() {
     await rollbackBranch(lockTarget(), node.objectId, snapshotId, activeBranch);
     setStatus(`已回滚 ${activeBranch} 指针到 ${snapshotId.slice(0, 8)}，历史未删`);
     await refreshSnapshots(node.objectId);
+  }
+
+  async function refreshAssets() {
+    const listed = await listAssets(activeStore(form), formToConfig(form).prefix);
+    setAssets(listed);
+  }
+
+  async function encodeWebpThumb(file: File): Promise<Uint8Array> {
+    if (typeof createImageBitmap !== "function") {
+      return PLACEHOLDER_WEBP.slice();
+    }
+    try {
+      const bitmap = await createImageBitmap(file);
+      const canvas = document.createElement("canvas");
+      const max = 256;
+      const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height, 1));
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        return PLACEHOLDER_WEBP.slice();
+      }
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/webp", 0.8),
+      );
+      if (!blob) {
+        return PLACEHOLDER_WEBP.slice();
+      }
+      return new Uint8Array(await blob.arrayBuffer());
+    } catch {
+      return PLACEHOLDER_WEBP.slice();
+    }
+  }
+
+  async function onPickAsset(file: File) {
+    if (!canWrite) {
+      setStatus("只读模式：写入口已禁用");
+      return;
+    }
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const thumbBytes = file.type.startsWith("image/")
+        ? await encodeWebpThumb(file)
+        : PLACEHOLDER_WEBP.slice();
+      const created = await importAsset(lockTarget(), {
+        name: file.name,
+        bytes,
+        mimeType: file.type || "application/octet-stream",
+        thumbBytes,
+      });
+      setStatus(`已导入素材 ${created.name}（原图在 blobs，本机默认只缓存缩略图）`);
+      await refreshAssets();
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "素材导入失败");
+    }
   }
 
   async function refreshKanban() {
@@ -1018,7 +1079,37 @@ export function App() {
         </section>
       ) : null}
       <h2 id="pane-assets">素材</h2>
-      <p>素材库导入与缩略图见 F-030。</p>
+      <p>
+        全局素材库。默认同步元数据与 thumb.webp，原图按需取回，不写入每台设备磁盘。
+      </p>
+      <p>
+        <button type="button" onClick={() => void refreshAssets()}>
+          刷新素材
+        </button>
+        <label>
+          导入图片
+          <input
+            type="file"
+            accept="image/*"
+            disabled={!canWrite}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                void onPickAsset(file);
+              }
+              e.target.value = "";
+            }}
+          />
+        </label>
+      </p>
+      <ul>
+        {assets.map((asset) => (
+          <li key={asset.id}>
+            {asset.name} <code>{asset.thumbKey}</code>
+            {asset.width && asset.height ? ` ${asset.width}×${asset.height}` : ""}
+          </li>
+        ))}
+      </ul>
       <h2 id="pane-kanban">看板</h2>
       <p>
         <button type="button" onClick={() => void refreshKanban()}>

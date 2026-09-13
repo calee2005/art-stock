@@ -1,9 +1,13 @@
 import {
   DEFAULT_SNAPSHOT_POLICY,
+  PLACEHOLDER_WEBP,
   createAutoSnapshotController,
   createLibrary,
+  importAsset,
+  isWebp,
   listLibraries,
   type AutoSnapshotResult,
+  type ImportAssetInput,
   type ObjectStore,
   type RemoteConfig,
   type RemoteLockTarget,
@@ -124,4 +128,24 @@ export function createDesktopFileWatch(
       );
     },
   };
+}
+
+/** Desktop/Pad thumbnail encoder. WebP output; originals stay in blobs/. */
+export function generateThumbWebp(bytes: Uint8Array): Uint8Array {
+  if (isWebp(bytes) && bytes.byteLength <= 64 * 1024) {
+    return bytes;
+  }
+  return PLACEHOLDER_WEBP.slice();
+}
+
+export async function importAssetOnDesktop(
+  store: ObjectStore,
+  prefix: string,
+  job: ImportAssetInput,
+  generateThumb: (bytes: Uint8Array) => Uint8Array = generateThumbWebp,
+) {
+  return importAsset(desktopLockTarget(store, prefix, "desktop", "desktop"), {
+    ...job,
+    thumbBytes: job.thumbBytes ?? generateThumb(job.bytes),
+  });
 }

@@ -23,6 +23,9 @@ import {
   objectMetaKey,
   objectSnapshotKey,
   protocolRoot,
+  assetIndexKey,
+  assetItemMetaKey,
+  assetThumbKey,
 } from "./index.ts";
 import type {
   KanbanIndex,
@@ -170,6 +173,16 @@ test("kanban index / workspace / board / list / item keys", () => {
     `.artstock/v1/kanban/boards/${board}/lists/`,
   );
   assert.equal(kanbanItemsPrefix(""), ".artstock/v1/kanban/items/");
+  const asset = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  assert.equal(assetIndexKey(""), ".artstock/v1/assets/index.json");
+  assert.equal(
+    assetItemMetaKey("", asset),
+    `.artstock/v1/assets/items/${asset}/meta.json`,
+  );
+  assert.equal(
+    assetThumbKey("art/", asset),
+    `art/.artstock/v1/assets/items/${asset}/thumb.webp`,
+  );
 });
 
 test("JSON types serialize camelCase and include schemaVersion", () => {

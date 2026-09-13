@@ -91,6 +91,44 @@ export type SnapshotPolicy = {
   minIntervalMs: number;
 };
 
+export type AssetRating = 0 | 1 | 2 | 3 | 4 | 5;
+
+export type AssetItem = {
+  schemaVersion: SchemaVersion;
+  id: Uuid;
+  name: string;
+  folderId: Uuid | null;
+  tags: string[];
+  rating: AssetRating;
+  width?: number;
+  height?: number;
+  mimeType: string;
+  blobSha256: Sha256Hex;
+  thumbKey: string;
+  sourceObjectId?: Uuid;
+  createdAt: Iso8601;
+  updatedAt: Iso8601;
+};
+
+export type AssetIndexEntry = {
+  id: Uuid;
+  name: string;
+  folderId: Uuid | null;
+  thumbKey: string;
+};
+
+export type AssetIndex = {
+  schemaVersion: SchemaVersion;
+  updatedAt: Iso8601;
+  updatedBy: DeviceId;
+  items: AssetIndexEntry[];
+};
+
+/** Local cache policy. Originals stay remote unless pinned or opened. */
+export type AssetCachePolicy = {
+  cacheOriginals: boolean;
+};
+
 export type LockPurpose =
   | "sync"
   | "upload"

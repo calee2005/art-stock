@@ -138,6 +138,13 @@ export function assetItemMetaKey(
   return objectKey(prefix, `assets/items/${assetId}/meta.json`);
 }
 
+export function assetThumbKey(
+  prefix: string = DEFAULT_REMOTE_PREFIX,
+  assetId: string,
+): string {
+  return objectKey(prefix, `assets/items/${assetId}/thumb.webp`);
+}
+
 export function einkConfigKey(prefix: string = DEFAULT_REMOTE_PREFIX): string {
   return objectKey(prefix, "device/eink/config.json");
 }

@@ -1,6 +1,7 @@
 //! Art Stock native host. Protocol (keys, lock, merge) stays in `packages/core`.
 
 mod secrets;
+mod thumb;
 mod watch;
 
 use tauri::Manager;
@@ -33,6 +34,7 @@ pub fn run() {
             secure_store_set,
             secure_store_get,
             cache_dir,
+            thumb::thumb_generate,
             watch::watch_start,
             watch::watch_stop
         ])

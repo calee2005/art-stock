@@ -1,5 +1,10 @@
 export { SCHEMA_VERSION } from "./types.ts";
 export type {
+  AssetCachePolicy,
+  AssetIndex,
+  AssetIndexEntry,
+  AssetItem,
+  AssetRating,
   BranchPointer,
   DeviceId,
   EinkConfig,
@@ -49,6 +54,7 @@ export {
   PROTOCOL_DIR,
   assetIndexKey,
   assetItemMetaKey,
+  assetThumbKey,
   blobKey,
   clockKey,
   defaultRemoteConfig,
@@ -201,3 +207,17 @@ export {
   type AutoSnapshotResult,
   type ClockScheduler,
 } from "./auto-snapshot.ts";
+
+export {
+  DEFAULT_ASSET_CACHE_POLICY,
+  PLACEHOLDER_WEBP,
+  createDeviceAssetCache,
+  getAssetMeta,
+  hydrateAssetCache,
+  importAsset,
+  isWebp,
+  listAssets,
+  readPngSize,
+  type DeviceAssetCache,
+  type ImportAssetInput,
+} from "./assets.ts";

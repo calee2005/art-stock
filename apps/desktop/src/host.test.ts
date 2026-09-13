@@ -13,6 +13,7 @@ import {
   createDesktopFileWatch,
   createLibraryOnDesktop,
   desktopLockTarget,
+  importAssetOnDesktop,
   listLibrariesOnDesktop,
   loadDesktopRemote,
   saveDesktopRemote,
@@ -109,4 +110,25 @@ test("watched file save auto-commits after minIntervalMs debounce", async () => 
   const result = await second;
   assert.equal(result.status, "committed");
   assert.equal((await listSnapshots(store, "", imported.object.id)).length, 2);
+});
+
+test("desktop import generates webp thumb under lock and does not require caching originals", async () => {
+  const store = new MemoryObjectStore();
+  const png = Uint8Array.from(
+    Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+      "base64",
+    ),
+  );
+  const item = await importAssetOnDesktop(store, "", {
+    name: "spot.png",
+    bytes: png,
+    mimeType: "image/png",
+  });
+  assert.ok(item.thumbKey.endsWith("thumb.webp"));
+  const thumb = await store.get(
+    `.artstock/v1/assets/items/${item.id}/thumb.webp`,
+  );
+  assert.ok(thumb);
+  assert.equal(thumb.contentType, "image/webp");
 });
