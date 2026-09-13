@@ -262,7 +262,7 @@
       "id": "F-030",
       "name": "素材库导入与缩略图",
       "phase": "P3",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-012"],
       "apps": ["web", "desktop"],
       "designDoc": "docs/03-features/04-assets.md",
