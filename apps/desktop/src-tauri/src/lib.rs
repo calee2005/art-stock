@@ -1,7 +1,11 @@
-//! Thin native host for Art Stock. Tauri `mobile_entry_point` and commands land in F-005.
-//! Protocol (keys, lock, merge) stays in `packages/core`.
+//! Art Stock native host. Protocol (keys, lock, merge) stays in `packages/core`.
 
-pub fn placeholder() {}
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .run(tauri::generate_context!())
+        .expect("error while running Art Stock");
+}
 
 #[cfg(test)]
 mod tests {

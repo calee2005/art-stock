@@ -101,7 +101,7 @@
       "id": "F-005",
       "name": "Tauri 空壳：desktop + Android 目标声明",
       "phase": "P0",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-000"],
       "apps": ["desktop", "android"],
       "designDoc": "docs/03-features/15-desktop.md",
@@ -110,7 +110,7 @@
         "desktop 与 mobile 分 capabilities",
         "Windows 或 macOS 上 tauri dev 能开空窗加载 webview"
       ],
-      "notes": "本项不要求 Android 真机跑通业务。"
+      "notes": "lib.rs mobile_entry_point; desktop/mobile capabilities; Android 目标在 tauri.android.conf.json。空窗已在 Linux 桌面会话验证 webview。不要求 Android 真机业务。"
     },
     {
       "id": "F-010",

@@ -4,14 +4,18 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node -e \"console.log('desktop placeholder; Tauri shell lands in F-005')\"",
-    "build": "node -e \"process.exit(0)\"",
+    "dev": "tauri dev",
+    "build": "tauri build",
     "lint": "node -e \"process.exit(0)\"",
-    "test": "node -e \"process.exit(0)\""
+    "test": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "tauri": "tauri"
   },
   "dependencies": {
     "@art-stock/core": "workspace:*",
     "@art-stock/s3": "workspace:*",
     "@art-stock/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.9.0"
   }
 }
