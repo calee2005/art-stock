@@ -28,6 +28,9 @@ import {
   listItems,
   createItem,
   moveItem,
+  commitSnapshot,
+  listSnapshots,
+  rollbackBranch,
   type ImportQueue,
   type SyncState,
   type ObjectStore,
@@ -35,6 +38,7 @@ import {
   type KanbanIndexWorkspace,
   type KanbanList,
   type KanbanItem,
+  type Snapshot,
 } from "@art-stock/core";
 import {
   deviceIdentity,
@@ -97,6 +101,9 @@ export function App() {
   const [itemAttachments, setItemAttachments] = useState("");
   const [itemListId, setItemListId] = useState("");
   const [detailItemId, setDetailItemId] = useState<string | null>(null);
+  const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
+  const [snapshotMessage, setSnapshotMessage] = useState("commit");
+  const [snapshotBody, setSnapshotBody] = useState("");
   const device = useMemo(() => deviceIdentity(storage), []);
   const preview = useMemo(
     () => protocolRoot(form.prefix),
@@ -369,6 +376,42 @@ export function App() {
     }
   }
 
+  async function refreshSnapshots(objectId: string) {
+    const listed = await listSnapshots(
+      activeStore(form),
+      formToConfig(form).prefix,
+      objectId,
+    );
+    setSnapshots(listed);
+  }
+
+  async function onCommitSnapshot() {
+    const node = treeNodes.find((item) => item.id === selectedNodeId);
+    if (!canWrite || !node?.objectId) {
+      setStatus("请选择文件节点");
+      return;
+    }
+    const bytes = new TextEncoder().encode(snapshotBody || `snap-${Date.now()}`);
+    const snap = await commitSnapshot(
+      lockTarget(),
+      node.objectId,
+      bytes,
+      snapshotMessage,
+    );
+    setStatus(`已提交快照 ${snap.id.slice(0, 8)}`);
+    await refreshSnapshots(node.objectId);
+  }
+
+  async function onRollback(snapshotId: string) {
+    const node = treeNodes.find((item) => item.id === selectedNodeId);
+    if (!canWrite || !node?.objectId) {
+      return;
+    }
+    await rollbackBranch(lockTarget(), node.objectId, snapshotId);
+    setStatus(`已回滚分支指针到 ${snapshotId.slice(0, 8)}，历史未删`);
+    await refreshSnapshots(node.objectId);
+  }
+
   async function refreshKanban() {
     const listed = await listWorkspaces(activeStore(form), formToConfig(form).prefix);
     setWorkspaces(listed);
@@ -638,7 +681,14 @@ export function App() {
                 <li key={node.id} style={{ marginLeft: (folderDepth(treeNodes, node.id) - 1) * 16 }}>
                   <button
                     type="button"
-                    onClick={() => setSelectedNodeId(node.id)}
+                    onClick={() => {
+                      setSelectedNodeId(node.id);
+                      if (node.objectId) {
+                        void refreshSnapshots(node.objectId);
+                      } else {
+                        setSnapshots([]);
+                      }
+                    }}
                     style={{
                       fontWeight: selectedNodeId === node.id ? 700 : 400,
                     }}
@@ -689,6 +739,43 @@ export function App() {
                   </button>
                 ))}
             </p>
+          ) : null}
+          {treeNodes.find((node) => node.id === selectedNodeId)?.objectId ? (
+            <section>
+              <h3>快照</h3>
+              <label>
+                message
+                <input
+                  value={snapshotMessage}
+                  onChange={(e) => setSnapshotMessage(e.target.value)}
+                />
+              </label>
+              <label>
+                新内容
+                <input
+                  value={snapshotBody}
+                  onChange={(e) => setSnapshotBody(e.target.value)}
+                  placeholder="写入新 blob 文本"
+                />
+              </label>
+              <button type="button" onClick={() => void onCommitSnapshot()} disabled={!canWrite}>
+                提交快照
+              </button>
+              <ul>
+                {snapshots.map((snap) => (
+                  <li key={snap.id}>
+                    {snap.message} <code>{snap.id.slice(0, 8)}</code>
+                    <button
+                      type="button"
+                      disabled={!canWrite}
+                      onClick={() => void onRollback(snap.id)}
+                    >
+                      回滚到此
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
           ) : null}
           <form
             onSubmit={(event) => {

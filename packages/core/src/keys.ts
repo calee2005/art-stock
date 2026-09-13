@@ -55,6 +55,13 @@ export function objectSnapshotKey(
   return objectKey(prefix, `objects/${objectId}/snapshots/${snapshotId}.json`);
 }
 
+export function objectSnapshotsPrefix(
+  prefix: string = DEFAULT_REMOTE_PREFIX,
+  objectId: string,
+): string {
+  return objectKey(prefix, `objects/${objectId}/snapshots/`);
+}
+
 export function libraryMetaKey(
   prefix: string = DEFAULT_REMOTE_PREFIX,
   libraryId: string,

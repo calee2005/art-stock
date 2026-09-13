@@ -68,6 +68,7 @@ export {
   objectKey,
   objectMetaKey,
   objectSnapshotKey,
+  objectSnapshotsPrefix,
   oplogKey,
   protocolRoot,
 } from "./keys.ts";
@@ -178,3 +179,10 @@ export {
   type SyncJob,
   type SyncState,
 } from "./sync.ts";
+
+export {
+  commitSnapshot,
+  getBranch,
+  listSnapshots,
+  rollbackBranch,
+} from "./versions.ts";

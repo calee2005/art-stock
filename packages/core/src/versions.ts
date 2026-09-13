@@ -1,0 +1,189 @@
+import { encodeJson, decodeJson } from "./json.ts";
+import { sha256Hex } from "./hash.ts";
+import {
+  blobKey,
+  objectBranchKey,
+  objectMetaKey,
+  objectSnapshotKey,
+  objectSnapshotsPrefix,
+} from "./keys.ts";
+import {
+  withRemoteLock,
+  type RemoteLockTarget,
+  type WithRemoteLockOptions,
+} from "./lock.ts";
+import { isStoreError } from "./store-error.ts";
+import {
+  SCHEMA_VERSION,
+  type BranchPointer,
+  type ObjectMeta,
+  type Snapshot,
+} from "./types.ts";
+import type { ObjectStore } from "./store.ts";
+
+const lockOpts = (options?: WithRemoteLockOptions): WithRemoteLockOptions => ({
+  probe: false,
+  scheduleHeartbeat: () => () => {},
+  ...options,
+});
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+async function putBlobIfAbsent(
+  remote: RemoteLockTarget,
+  sha: string,
+  bytes: Uint8Array,
+): Promise<void> {
+  const key = blobKey(remote.prefix ?? "", sha);
+  if (await remote.store.get(key)) {
+    return;
+  }
+  try {
+    await remote.store.put(key, bytes, {
+      contentType: "application/octet-stream",
+      ifNoneMatch: "*",
+      forbidOverwrite: true,
+    });
+  } catch (error) {
+    if (isStoreError(error) && error.code === "PRECONDITION_FAILED") {
+      return;
+    }
+    throw error;
+  }
+}
+
+export async function getBranch(
+  store: ObjectStore,
+  prefix: string,
+  objectId: string,
+  branch: string,
+): Promise<{ pointer: BranchPointer; etag: string } | null> {
+  const got = await store.get(objectBranchKey(prefix, objectId, branch));
+  if (!got) {
+    return null;
+  }
+  return { pointer: decodeJson(got.body) as BranchPointer, etag: got.etag };
+}
+
+export async function listSnapshots(
+  store: ObjectStore,
+  prefix: string,
+  objectId: string,
+): Promise<Snapshot[]> {
+  const listed = await store.list(objectSnapshotsPrefix(prefix, objectId));
+  const snapshots: Snapshot[] = [];
+  for (const object of listed.keys) {
+    const got = await store.get(object.key);
+    if (!got) {
+      continue;
+    }
+    snapshots.push(decodeJson(got.body) as Snapshot);
+  }
+  return snapshots.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
+export async function commitSnapshot(
+  remote: RemoteLockTarget,
+  objectId: string,
+  bytes: Uint8Array,
+  message = "commit",
+  branch?: string,
+  options?: WithRemoteLockOptions,
+): Promise<Snapshot> {
+  const prefix = remote.prefix ?? "";
+  return withRemoteLock(
+    remote,
+    "sync",
+    async () => {
+      const metaGot = await remote.store.get(objectMetaKey(prefix, objectId));
+      if (!metaGot) {
+        throw new Error(`Object not found: ${objectId}`);
+      }
+      const meta = decodeJson(metaGot.body) as ObjectMeta;
+      const branchName = branch ?? meta.defaultBranch;
+      const current = await getBranch(remote.store, prefix, objectId, branchName);
+      if (!current) {
+        throw new Error(`Branch not found: ${branchName}`);
+      }
+      const sha = await sha256Hex(bytes);
+      await putBlobIfAbsent(remote, sha, bytes);
+      const at = nowIso();
+      const snapshot: Snapshot = {
+        id: crypto.randomUUID(),
+        parentSnapshotId: current.pointer.snapshotId,
+        branch: branchName,
+        blobSha256: sha,
+        byteSize: bytes.byteLength,
+        mimeType: "application/octet-stream",
+        message,
+        createdAt: at,
+        createdBy: remote.deviceId,
+      };
+      await remote.store.put(
+        objectSnapshotKey(prefix, objectId, snapshot.id),
+        encodeJson(snapshot),
+        { contentType: "application/json", ifNoneMatch: "*" },
+      );
+      const pointer: BranchPointer = {
+        name: branchName,
+        snapshotId: snapshot.id,
+        updatedAt: at,
+        updatedBy: remote.deviceId,
+      };
+      await remote.store.put(
+        objectBranchKey(prefix, objectId, branchName),
+        encodeJson(pointer),
+        { contentType: "application/json", ifMatch: current.etag },
+      );
+      return snapshot;
+    },
+    lockOpts(options),
+  );
+}
+
+export async function rollbackBranch(
+  remote: RemoteLockTarget,
+  objectId: string,
+  snapshotId: string,
+  branch?: string,
+  options?: WithRemoteLockOptions,
+): Promise<BranchPointer> {
+  const prefix = remote.prefix ?? "";
+  return withRemoteLock(
+    remote,
+    "sync",
+    async () => {
+      const snapGot = await remote.store.get(
+        objectSnapshotKey(prefix, objectId, snapshotId),
+      );
+      if (!snapGot) {
+        throw new Error(`Snapshot not found: ${snapshotId}`);
+      }
+      const metaGot = await remote.store.get(objectMetaKey(prefix, objectId));
+      if (!metaGot) {
+        throw new Error(`Object not found: ${objectId}`);
+      }
+      const meta = decodeJson(metaGot.body) as ObjectMeta;
+      const branchName = branch ?? meta.defaultBranch;
+      const current = await getBranch(remote.store, prefix, objectId, branchName);
+      if (!current) {
+        throw new Error(`Branch not found: ${branchName}`);
+      }
+      const pointer: BranchPointer = {
+        name: branchName,
+        snapshotId,
+        updatedAt: nowIso(),
+        updatedBy: remote.deviceId,
+      };
+      await remote.store.put(
+        objectBranchKey(prefix, objectId, branchName),
+        encodeJson(pointer),
+        { contentType: "application/json", ifMatch: current.etag },
+      );
+      return pointer;
+    },
+    lockOpts(options),
+  );
+}
