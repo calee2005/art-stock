@@ -456,7 +456,7 @@
       "id": "F-062",
       "name": "看板拖拽改 listId/order",
       "phase": "P6",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-061"],
       "apps": ["web", "desktop", "android"],
       "designDoc": "docs/03-features/10-kanban.md",
