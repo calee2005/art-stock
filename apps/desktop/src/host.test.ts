@@ -13,6 +13,7 @@ import {
   createMindDoc,
   addMindChild,
   createDatabaseDoc,
+  DEFAULT_EINK_CONFIG,
 } from "@art-stock/core";
 import {
   createDesktopFileWatch,
@@ -27,6 +28,9 @@ import {
   sqliteQueryAssets,
   parseMindDocOnDesktop,
   parseDatabaseDocOnDesktop,
+  writeEinkConfigOnDesktop,
+  refreshEinkSummaryOnDesktop,
+  getEinkForDevice,
   type SecureStore,
 } from "./host.ts";
 
@@ -212,4 +216,22 @@ test("desktop database bytes are JSON snapshots not sqlite files", () => {
   );
   assert.equal(parsed.schemaVersion, 1);
   assert.equal(parsed.columns[1]?.type, "ref-asset");
+});
+
+test("desktop writes eink summary under lock; firmware GET does not list", async () => {
+  const store = new MemoryObjectStore();
+  const lib = await createLibraryOnDesktop(store, "", "库");
+  assert.ok(lib.id);
+  await writeEinkConfigOnDesktop(store, "", DEFAULT_EINK_CONFIG);
+  const summary = await refreshEinkSummaryOnDesktop(store, "", DEFAULT_EINK_CONFIG);
+  assert.equal(summary.libraryCount, 1);
+  const lists: string[] = [];
+  const origList = store.list.bind(store);
+  store.list = async (prefix, options) => {
+    lists.push(prefix);
+    return origList(prefix, options);
+  };
+  const fetched = await getEinkForDevice(store, "");
+  assert.equal(fetched.summary?.libraryCount, 1);
+  assert.deepEqual(lists, []);
 });

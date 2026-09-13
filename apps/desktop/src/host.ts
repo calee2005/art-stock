@@ -11,6 +11,11 @@ import {
   parseDatabaseDoc,
   preparePdfViewer,
   searchAssets,
+  fetchEinkForFirmware,
+  refreshEinkSummary,
+  writeEinkConfig,
+  type EinkConfig,
+  type EinkSummary,
   type AutoSnapshotResult,
   type ImportAssetInput,
   type ObjectStore,
@@ -187,4 +192,25 @@ export function parseMindDocOnDesktop(bytes: Uint8Array) {
 
 export function parseDatabaseDocOnDesktop(bytes: Uint8Array) {
   return parseDatabaseDoc(bytes);
+}
+
+export async function writeEinkConfigOnDesktop(
+  store: ObjectStore,
+  prefix: string,
+  config: EinkConfig,
+) {
+  return writeEinkConfig(desktopLockTarget(store, prefix), config);
+}
+
+export async function refreshEinkSummaryOnDesktop(
+  store: ObjectStore,
+  prefix: string,
+  config?: EinkConfig,
+) {
+  return refreshEinkSummary(desktopLockTarget(store, prefix), config);
+}
+
+/** Firmware-shaped GET: two keys, no lock, no List. */
+export async function getEinkForDevice(store: ObjectStore, prefix: string) {
+  return fetchEinkForFirmware(store, prefix);
 }

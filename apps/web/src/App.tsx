@@ -86,6 +86,10 @@ import {
   conflictBadgeCount,
   countUnresolvedConflicts,
   resolveConflictBranch,
+  DEFAULT_EINK_CONFIG,
+  refreshEinkSummary,
+  writeEinkConfig,
+  type EinkSummary,
   PLACEHOLDER_WEBP,
   LOCAL_PIN_STORAGE_KEY,
   addPin,
@@ -252,6 +256,7 @@ export function App() {
   const [dbConflicts, setDbConflicts] = useState<CellConflict[]>([]);
   const [conflictCount, setConflictCount] = useState(0);
   const [keepBothName, setKeepBothName] = useState("kept");
+  const [einkSummary, setEinkSummary] = useState<EinkSummary | null>(null);
   const dbClock = useMemo(() => createHlcClock("web-local"), []);
   const [pins, setPins] = useState<Pin[]>(() => {
     try {
@@ -405,6 +410,31 @@ export function App() {
       deviceId: device.deviceId,
       deviceName: device.deviceName,
     };
+  }
+
+  async function onWriteEink() {
+    if (!canWrite) {
+      setStatus("只读模式：写入口已禁用");
+      return;
+    }
+    try {
+      const config = {
+        ...DEFAULT_EINK_CONFIG,
+        todo: {
+          ...DEFAULT_EINK_CONFIG.todo,
+          workspaceId: selectedWorkspaceId || "",
+          boardId: selectedBoardId || null,
+        },
+      };
+      await writeEinkConfig(lockTarget(), config);
+      const summary = await refreshEinkSummary(lockTarget(), config);
+      setEinkSummary(summary);
+      setStatus(
+        `已持锁写入 eink config/summary（${summary.libraryCount} 库，${summary.todos.length} 待办，无密钥）`,
+      );
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "写入 eink 失败");
+    }
   }
 
   async function refreshTree(libraryId: string) {
@@ -2442,6 +2472,40 @@ export function App() {
             </button>
           </form>
         </section>
+      ) : null}
+      <h2 id="pane-eink">墨水屏摘要</h2>
+      <p>
+        客户端持锁写 <code>device/eink/config.json</code> 与{" "}
+        <code>summary.json</code>。固件只 GET 这两键，不持写锁、不 List 全桶。
+      </p>
+      <p>
+        <button
+          type="button"
+          data-testid="eink-write"
+          disabled={!canWrite}
+          onClick={() => void onWriteEink()}
+        >
+          写入 config 与 summary
+        </button>
+      </p>
+      {einkSummary ? (
+        <div data-testid="eink-summary">
+          <p>libraryCount {einkSummary.libraryCount}</p>
+          <ul>
+            {einkSummary.recentFiles.map((file) => (
+              <li key={`${file.libraryName}-${file.name}`}>
+                {file.name}（{file.libraryName}）
+              </li>
+            ))}
+          </ul>
+          <ul>
+            {einkSummary.todos.map((todo) => (
+              <li key={todo.title}>
+                {todo.title} · {todo.boardName}
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : null}
       <style>{`
         label { display: block; margin: 0.4rem 0; }

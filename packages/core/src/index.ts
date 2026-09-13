@@ -350,3 +350,18 @@ export {
   type ConflictAction,
   type ResolveConflictOptions,
 } from "./conflicts.ts";
+
+export {
+  DEFAULT_EINK_CONFIG,
+  EINK_SUMMARY_MAX_BYTES,
+  assertEinkNoSecrets,
+  buildEinkSummary,
+  defaultEinkConfig,
+  einkJsonHasSecrets,
+  fetchEinkForFirmware,
+  readEinkConfig,
+  readEinkSummary,
+  refreshEinkSummary,
+  writeEinkConfig,
+  writeEinkSummary,
+} from "./eink.ts";
