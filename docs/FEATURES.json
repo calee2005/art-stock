@@ -545,7 +545,7 @@
         "未删 board 驱动与 RawDraw",
         "未新建平行 firmware 工程"
       ],
-      "notes": "本机 COM3 VID_303A ESP32-S3 已连接；领取后 subtree + 刷机验证。"
+      "notes": "本机 COM3 VID_303A ESP32-S3 已连接；领取后 subtree + 刷机验证。工具链：C:\\esp\\v6.0.3\\esp-idf（不要用 C:\\Users\\calee\\esp\\v5.4.2）。未亮屏，不假装完成。"
     },
     {
       "id": "F-081",

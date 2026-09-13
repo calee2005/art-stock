@@ -69,7 +69,7 @@ Agent 以 [FEATURES.json](FEATURES.json) 为任务源，本文件为可读勾选
 
 ## P8 墨水屏
 
-- [ ] **F-080** subtree 拉取上游并刷机验证启动 — [17-eink](03-features/17-eink.md)（**doing**：本机 ESP32-S3 COM3）
+- [ ] **F-080** subtree 拉取上游并刷机验证启动 — [17-eink](03-features/17-eink.md)（**doing**：本机 ESP32-S3 COM3；IDF `C:\esp\v6.0.3\esp-idf`）
 - [x] **F-081** 客户端写 config/summary（F-010, F-061, F-003）
 - [ ] **F-082** 固件 GET 与 art-stock 页面（F-080, F-081）（**blocked**：依赖 F-080 亮屏，无墨水屏）
 

@@ -103,7 +103,9 @@ load_idf_env() {
     return 0
   fi
 
-  for export_sh in "$HOME/esp/esp-idf/export.sh" "/root/esp/esp-idf/export.sh"; do
+  for export_sh in \
+    "/c/esp/v6.0.3/esp-idf/export.sh" \
+    "C:/esp/v6.0.3/esp-idf/export.sh"; do
     if [[ -f "$export_sh" ]]; then
       # shellcheck disable=SC1090
       source "$export_sh"

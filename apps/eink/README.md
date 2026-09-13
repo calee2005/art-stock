@@ -123,17 +123,18 @@ http://192.168.4.1
 
 ### 编译
 
-```bash
+本机约定 ESP-IDF 源码：`C:\esp\v6.0.3\esp-idf\`。优先使用环境变量 `IDF_PATH`；未设置时 Windows 构建脚本回退到该路径。本机 EIM 工具链在 `C:\Espressif\tools`，不要用 `%USERPROFILE%\.espressif` 下的 v5.x。
+
+Windows PowerShell：
+
+```powershell
+. C:\Espressif\tools\Microsoft.v6.0.3.PowerShell_profile.ps1
 cd firmware
-source ~/Documents/esp/v6.0/esp-idf/export.sh
 idf.py build
 ```
 
-根目录辅助命令：
+或直接运行 `.\build_windows.ps1`。
 
-```bash
-npm run firmware:build
-```
 
 ### 屏幕配置
 
