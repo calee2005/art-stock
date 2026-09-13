@@ -67,6 +67,22 @@ import {
   setMindNodeText,
   type MindDoc,
   type MindNode,
+  addDatabaseColumn,
+  addDatabaseRow,
+  applyCellChoice,
+  createDatabaseDoc,
+  diffDatabaseCells,
+  encodeDatabaseDoc,
+  isDatabaseName,
+  liveColumns,
+  liveRows,
+  loadDatabase,
+  saveDatabase,
+  setDatabaseCell,
+  type CellConflict,
+  type DatabaseDoc,
+  createHlcClock,
+  tickHlc,
   PLACEHOLDER_WEBP,
   LOCAL_PIN_STORAGE_KEY,
   addPin,
@@ -228,6 +244,10 @@ export function App() {
   const [pdfSwipeX, setPdfSwipeX] = useState<number | null>(null);
   const [mindDoc, setMindDoc] = useState<MindDoc | null>(null);
   const [mindSelectedId, setMindSelectedId] = useState("");
+  const [dbDoc, setDbDoc] = useState<DatabaseDoc | null>(null);
+  const [dbRemote, setDbRemote] = useState<DatabaseDoc | null>(null);
+  const [dbConflicts, setDbConflicts] = useState<CellConflict[]>([]);
+  const dbClock = useMemo(() => createHlcClock("web-local"), []);
   const [pins, setPins] = useState<Pin[]>(() => {
     try {
       const raw = storage.getItem(LOCAL_PIN_STORAGE_KEY);
@@ -644,6 +664,20 @@ export function App() {
     }
   }
 
+  async function loadDatabaseFile(objectId: string) {
+    const prefix = formToConfig(form).prefix;
+    const store = activeStore(form);
+    try {
+      const parsed = await loadDatabase(store, prefix, objectId);
+      setDbDoc(parsed);
+      setDbRemote(parsed);
+      setDbConflicts([]);
+    } catch (error) {
+      setDbDoc(null);
+      setStatus(error instanceof Error ? error.message : "数据表 JSON 无效");
+    }
+  }
+
   function clearVersionUi() {
     setSnapshots([]);
     setBranches([]);
@@ -655,6 +689,9 @@ export function App() {
     setPdfZoom(1);
     setMindDoc(null);
     setMindSelectedId("");
+    setDbDoc(null);
+    setDbRemote(null);
+    setDbConflicts([]);
   }
 
   async function onCommitSnapshot() {
@@ -1107,22 +1144,32 @@ export function App() {
                         if (/\.(md|markdown)$/i.test(node.name)) {
                           setPdfViewer(null);
                           setMindDoc(null);
+                          setDbDoc(null);
                           void loadMarkdown(node.objectId);
                         } else if (isPdfName(node.name)) {
                           setMdSource("");
                           setMdHtml("");
                           setMindDoc(null);
+                          setDbDoc(null);
                           void loadPdfPlaceholder(node.objectId);
                         } else if (isMindmapName(node.name)) {
                           setMdSource("");
                           setMdHtml("");
                           setPdfViewer(null);
+                          setDbDoc(null);
                           void loadMindmap(node.objectId);
+                        } else if (isDatabaseName(node.name)) {
+                          setMdSource("");
+                          setMdHtml("");
+                          setPdfViewer(null);
+                          setMindDoc(null);
+                          void loadDatabaseFile(node.objectId);
                         } else {
                           setMdSource("");
                           setMdHtml("");
                           setPdfViewer(null);
                           setMindDoc(null);
+                          setDbDoc(null);
                         }
                       } else {
                         clearVersionUi();
@@ -1527,6 +1574,174 @@ export function App() {
                     <p>无法解析 JSON</p>
                   )}
                 </div>
+              ) : isDatabaseName(
+                  treeNodes.find((node) => node.id === selectedNodeId)?.name ??
+                    "",
+                ) ? (
+                <div data-testid="database-editor">
+                  <h3>数据表</h3>
+                  <p>权威数据是 JSON + oplog，不是 S3 上的 sqlite。</p>
+                  {dbDoc ? (
+                    <>
+                      <table>
+                        <thead>
+                          <tr>
+                            {liveColumns(dbDoc).map((column) => (
+                              <th key={column.id}>
+                                {column.name}
+                                <code>{column.type}</code>
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {liveRows(dbDoc).map((row) => (
+                            <tr key={row.id}>
+                              {liveColumns(dbDoc).map((column) => (
+                                <td key={column.id}>
+                                  <input
+                                    data-testid={`db-cell-${row.id}-${column.id}`}
+                                    value={String(row.cells[column.id] ?? "")}
+                                    onChange={(event) => {
+                                      setDbDoc(
+                                        setDatabaseCell(
+                                          dbDoc,
+                                          row.id,
+                                          column.id,
+                                          event.target.value,
+                                          tickHlc(dbClock),
+                                        ),
+                                      );
+                                    }}
+                                  />
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <button
+                        type="button"
+                        data-testid="db-add-row"
+                        disabled={!canWrite}
+                        onClick={() => setDbDoc(addDatabaseRow(dbDoc, {}, tickHlc(dbClock)))}
+                      >
+                        加行
+                      </button>
+                      <button
+                        type="button"
+                        data-testid="db-add-column"
+                        disabled={!canWrite}
+                        onClick={() =>
+                          setDbDoc(
+                            addDatabaseColumn(dbDoc, "列", "text", tickHlc(dbClock)),
+                          )
+                        }
+                      >
+                        加列
+                      </button>
+                      <button
+                        type="button"
+                        data-testid="db-save"
+                        disabled={!canWrite}
+                        onClick={() => {
+                          const node = treeNodes.find(
+                            (item) => item.id === selectedNodeId,
+                          );
+                          if (!node?.objectId || !dbDoc) {
+                            return;
+                          }
+                          void saveDatabase(
+                            lockTarget(),
+                            node.objectId,
+                            dbDoc,
+                            activeBranch,
+                          ).then((snap) => {
+                            setStatus(
+                              `已保存数据表快照 ${snap.id.slice(0, 8)}（JSON+oplog）`,
+                            );
+                            return refreshSnapshots(node.objectId!);
+                          });
+                        }}
+                      >
+                        保存数据表
+                      </button>
+                      <button
+                        type="button"
+                        data-testid="db-compare"
+                        onClick={() => {
+                          if (!dbDoc || liveRows(dbDoc).length === 0) {
+                            return;
+                          }
+                          const row = liveRows(dbDoc)[0]!;
+                          const col = liveColumns(dbDoc)[0]!;
+                          const remote = setDatabaseCell(
+                            dbDoc,
+                            row.id,
+                            col.id,
+                            "REMOTE",
+                            tickHlc(dbClock),
+                          );
+                          setDbRemote(remote);
+                          setDbConflicts(diffDatabaseCells(dbDoc, remote));
+                        }}
+                      >
+                        与远端比较
+                      </button>
+                      {dbConflicts.map((conflict) => (
+                        <p key={`${conflict.rowId}-${conflict.columnId}`}>
+                          单元格冲突 本地={String(conflict.local)} 远端=
+                          {String(conflict.remote)}
+                          <button
+                            type="button"
+                            data-testid="db-pick-remote"
+                            onClick={() => {
+                              if (!dbDoc || !dbRemote) {
+                                return;
+                              }
+                              setDbDoc(
+                                applyCellChoice(
+                                  dbDoc,
+                                  dbRemote,
+                                  conflict,
+                                  "remote",
+                                  tickHlc(dbClock),
+                                ),
+                              );
+                              setDbConflicts([]);
+                              setStatus("已选用远端单元格，结果唯一");
+                            }}
+                          >
+                            用远端
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!dbDoc || !dbRemote) {
+                                return;
+                              }
+                              setDbDoc(
+                                applyCellChoice(
+                                  dbDoc,
+                                  dbRemote,
+                                  conflict,
+                                  "local",
+                                  tickHlc(dbClock),
+                                ),
+                              );
+                              setDbConflicts([]);
+                              setStatus("已选用本地单元格，结果唯一");
+                            }}
+                          >
+                            用本地
+                          </button>
+                        </p>
+                      ))}
+                    </>
+                  ) : (
+                    <p>无法解析数据表</p>
+                  )}
+                </div>
               ) : null}
             </section>
           ) : null}
@@ -1646,6 +1861,25 @@ export function App() {
               }}
             >
               新建思维导图
+            </button>
+            <button
+              type="button"
+              data-testid="import-sample-database"
+              disabled={!canWrite || !selectedLibraryId}
+              onClick={() => {
+                const bytes = encodeDatabaseDoc(
+                  createDatabaseDoc([
+                    { name: "标题", type: "text" },
+                    { name: "素材", type: "ref-asset" },
+                  ]),
+                );
+                const file = new File([Uint8Array.from(bytes)], "cast.database", {
+                  type: "application/json",
+                });
+                void onPickFile(file);
+              }}
+            >
+              新建数据表
             </button>
           </p>
         </section>

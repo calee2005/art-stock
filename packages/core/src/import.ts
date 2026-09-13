@@ -93,6 +93,9 @@ export function inferObjectType(name: string, mimeType?: string): ObjectType {
   if (ext === "json" && name.toLowerCase().includes("mind")) {
     return "mindmap";
   }
+  if (ext === "database") {
+    return "database";
+  }
   if (["mp3", "wav", "flac", "ogg", "m4a"].includes(ext)) {
     return "audio";
   }

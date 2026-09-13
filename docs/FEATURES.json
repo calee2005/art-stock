@@ -473,7 +473,7 @@
       "id": "F-063",
       "name": "多维数据表（JSON+oplog，非 S3 上的 SQLite）",
       "phase": "P6",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-012"],
       "apps": ["web", "desktop", "android", "core"],
       "designDoc": "docs/03-features/09-database.md",
@@ -483,7 +483,7 @@
         "同单元格比较后选边",
         "S3 无该库的 sqlite 真源"
       ],
-      "notes": ""
+      "notes": "DatabaseDoc JSON snapshot + global oplog upserts via withRemoteLock. Row LWW; cell compare picks local/remote. Keys never include .sqlite."
     },
     {
       "id": "F-064",

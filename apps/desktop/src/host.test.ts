@@ -12,6 +12,7 @@ import {
   encodeMindDoc,
   createMindDoc,
   addMindChild,
+  createDatabaseDoc,
 } from "@art-stock/core";
 import {
   createDesktopFileWatch,
@@ -25,6 +26,7 @@ import {
   saveDesktopRemote,
   sqliteQueryAssets,
   parseMindDocOnDesktop,
+  parseDatabaseDocOnDesktop,
   type SecureStore,
 } from "./host.ts";
 
@@ -198,4 +200,16 @@ test("desktop mindmap bytes are documented JSON", () => {
   assert.equal(parsed.schemaVersion, 1);
   assert.equal(parsed.root.children[0]?.children[0]?.text, "二层");
   assert.equal(JSON.parse(new TextDecoder().decode(encodeMindDoc(doc))).schemaVersion, 1);
+});
+
+test("desktop database bytes are JSON snapshots not sqlite files", () => {
+  const doc = createDatabaseDoc([
+    { name: "标题", type: "text" },
+    { name: "素材", type: "ref-asset" },
+  ]);
+  const parsed = parseDatabaseDocOnDesktop(
+    new TextEncoder().encode(JSON.stringify(doc)),
+  );
+  assert.equal(parsed.schemaVersion, 1);
+  assert.equal(parsed.columns[1]?.type, "ref-asset");
 });

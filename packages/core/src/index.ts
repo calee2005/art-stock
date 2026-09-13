@@ -318,3 +318,27 @@ export {
   type MindDoc,
   type MindNode,
 } from "./mindmap.ts";
+
+export {
+  addDatabaseColumn,
+  addDatabaseRow,
+  applyCellChoice,
+  createDatabaseDoc,
+  databaseUsesSqlite,
+  diffDatabaseCells,
+  encodeDatabaseDoc,
+  isDatabaseName,
+  liveColumns,
+  liveRows,
+  loadDatabase,
+  mergeDatabaseDocs,
+  parseDatabaseDoc,
+  saveDatabase,
+  setDatabaseCell,
+  tombstoneDatabaseRow,
+  type CellConflict,
+  type ColumnType,
+  type DatabaseColumn,
+  type DatabaseDoc,
+  type DatabaseRow,
+} from "./database.ts";

@@ -10,7 +10,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "test": "node --experimental-strip-types --test src/index.test.ts src/store.test.ts src/lock.test.ts src/libraries.test.ts src/tree.test.ts src/import.test.ts src/orset.test.ts src/tags.test.ts src/sync.test.ts src/kanban.test.ts src/versions.test.ts src/auto-snapshot.test.ts src/assets.test.ts src/pin.test.ts src/markdown.test.ts src/pdf.test.ts src/search.test.ts src/mindmap.test.ts"
+    "test": "node --experimental-strip-types --test src/index.test.ts src/store.test.ts src/lock.test.ts src/libraries.test.ts src/tree.test.ts src/import.test.ts src/orset.test.ts src/tags.test.ts src/sync.test.ts src/kanban.test.ts src/versions.test.ts src/auto-snapshot.test.ts src/assets.test.ts src/pin.test.ts src/markdown.test.ts src/pdf.test.ts src/search.test.ts src/mindmap.test.ts src/database.test.ts"
   },
   "devDependencies": {
     "typescript": "^5.9.2"

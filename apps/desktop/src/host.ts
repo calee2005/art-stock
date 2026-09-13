@@ -8,6 +8,7 @@ import {
   listLibraries,
   loadPdfOriginal,
   parseMindDoc,
+  parseDatabaseDoc,
   preparePdfViewer,
   searchAssets,
   type AutoSnapshotResult,
@@ -182,4 +183,8 @@ export function sqliteQueryAssets<T extends { id: string; name: string; tags: st
 
 export function parseMindDocOnDesktop(bytes: Uint8Array) {
   return parseMindDoc(bytes);
+}
+
+export function parseDatabaseDocOnDesktop(bytes: Uint8Array) {
+  return parseDatabaseDoc(bytes);
 }
