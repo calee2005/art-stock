@@ -103,6 +103,16 @@ pub fn pad_scan_e2e_report(app: tauri::AppHandle, status: Value) -> Result<(), S
     write_e2e_json(&app, "pad-scan-e2e-status.json", status)
 }
 
+#[tauri::command]
+pub fn pad_saf_e2e_config(app: tauri::AppHandle) -> Result<Option<Value>, String> {
+    read_e2e_json(&app, "pad-saf-e2e.json")
+}
+
+#[tauri::command]
+pub fn pad_saf_e2e_report(app: tauri::AppHandle, status: Value) -> Result<(), String> {
+    write_e2e_json(&app, "pad-saf-e2e-status.json", status)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{assert_no_secret_material, resolve_e2e_dir};

@@ -34,6 +34,10 @@
                 <data android:mimeType="application/pdf" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".SafPickActivity"
+            android:exported="false"
+            android:theme="@style/Theme.art_stock" />
 
         <provider
           android:name="androidx.core.content.FileProvider"

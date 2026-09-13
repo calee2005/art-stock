@@ -17,6 +17,7 @@ struct AndroidJni {
     keystore: jni::objects::GlobalRef,
     sandbox: jni::objects::GlobalRef,
     network: jni::objects::GlobalRef,
+    saf: jni::objects::GlobalRef,
 }
 
 static ANDROID_JNI: Mutex<Option<AndroidJni>> = Mutex::new(None);
@@ -26,6 +27,7 @@ pub(crate) struct JniHandles<'a> {
     pub keystore: &'a JClass<'a>,
     pub sandbox: &'a JClass<'a>,
     pub network: &'a JClass<'a>,
+    pub saf: &'a JClass<'a>,
 }
 
 pub(crate) fn files_dir() -> Result<std::path::PathBuf, String> {
@@ -70,6 +72,30 @@ pub(crate) fn network_kind() -> Result<String, String> {
     })
 }
 
+pub(crate) fn saf_call(method: &str, sig: &str) -> Result<String, String> {
+    with_jni(|env, handles| {
+        let result = env
+            .call_static_method(
+                handles.saf,
+                method,
+                sig,
+                &[jni::objects::JValue::Object(handles.context)],
+            )
+            .map_err(|err| err.to_string())?;
+        check_exception(env)?;
+        if sig.ends_with("V") {
+            return Ok(String::new());
+        }
+        let obj = result.l().map_err(|err| err.to_string())?;
+        let text = env
+            .get_string(&jni::objects::JString::from(obj))
+            .map_err(|err| err.to_string())?
+            .to_string_lossy()
+            .into_owned();
+        Ok(text)
+    })
+}
+
 pub(crate) fn check_exception(env: &mut JNIEnv<'_>) -> Result<(), String> {
     if env.exception_check().unwrap_or(false) {
         let _ = env.exception_clear();
@@ -95,14 +121,17 @@ pub(crate) fn with_jni<T>(
     let keystore_obj = jni.keystore.as_obj();
     let sandbox_obj = jni.sandbox.as_obj();
     let network_obj = jni.network.as_obj();
+    let saf_obj = jni.saf.as_obj();
     let keystore: &JClass = <&JClass>::from(keystore_obj);
     let sandbox: &JClass = <&JClass>::from(sandbox_obj);
     let network: &JClass = <&JClass>::from(network_obj);
+    let saf: &JClass = <&JClass>::from(saf_obj);
     let handles = JniHandles {
         context,
         keystore,
         sandbox,
         network,
+        saf,
     };
     f(&mut env, handles)
 }
@@ -121,6 +150,9 @@ fn attach_from_jni(env: &mut JNIEnv, context: JObject) -> Result<(), String> {
     let network = env
         .find_class("app/artstock/desktop/NetworkKind")
         .map_err(|err| err.to_string())?;
+    let saf = env
+        .find_class("app/artstock/desktop/SafTreeStore")
+        .map_err(|err| err.to_string())?;
     check_exception(env)?;
     let keystore = env
         .new_global_ref(&keystore)
@@ -131,6 +163,7 @@ fn attach_from_jni(env: &mut JNIEnv, context: JObject) -> Result<(), String> {
     let network = env
         .new_global_ref(&network)
         .map_err(|err| err.to_string())?;
+    let saf = env.new_global_ref(&saf).map_err(|err| err.to_string())?;
     let mut slot = ANDROID_JNI
         .lock()
         .map_err(|_| "Android JNI lock poisoned".to_string())?;
@@ -140,6 +173,7 @@ fn attach_from_jni(env: &mut JNIEnv, context: JObject) -> Result<(), String> {
         keystore,
         sandbox,
         network,
+        saf,
     });
     Ok(())
 }

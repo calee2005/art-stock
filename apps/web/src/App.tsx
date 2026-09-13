@@ -145,12 +145,14 @@ import {
   persistRemoteForm,
   redactSecrets,
   reportPadE2e,
+  reportPadSafE2e,
   reportPadScanE2e,
   reportPadShareE2e,
   restoreRemoteForm,
   runPadBrowseAndUpload,
   saveInboxScanStateHost,
   scanPadInboxNow,
+  loadPadSafE2eConfig,
   tauriInvokeFn,
   waitForTauriInvoke,
 } from "./pad-host.ts";
@@ -269,6 +271,8 @@ export function App() {
   const [selectedAssetId, setSelectedAssetId] = useState("");
   const [inboxItems, setInboxItems] = useState<{ name: string; size: number; mimeGuess?: string }[]>([]);
   const [inboxScan, setInboxScan] = useState(() => loadInboxScanState(storage));
+  const [safAuthorized, setSafAuthorized] = useState(false);
+  const [safLabel, setSafLabel] = useState("");
   const scanPolicyRef = useRef<SnapshotPolicy | undefined>(undefined);
   const scanInboxRef = useRef<() => Promise<void>>(async () => undefined);
   const [wifiOnlyOriginals, setWifiOnlyOriginals] = useState(
@@ -561,6 +565,46 @@ export function App() {
             invoke,
           );
         }
+        const safE2e = await loadPadSafE2eConfig(invoke);
+        if (safE2e) {
+          await invoke("saf_grant_e2e");
+          const scanned = (await invoke("saf_scan")) as {
+            copied?: number;
+            authorized?: boolean;
+          };
+          await invoke("saf_revoke");
+          const after = (await invoke("saf_scan")) as {
+            copied?: number;
+            authorized?: boolean;
+          };
+          await invoke("reclaim_cache");
+          const constraints = (await invoke("saf_constraints")) as {
+            holdsLock?: boolean;
+            writesRemote?: boolean;
+          };
+          setSafAuthorized(Boolean(after.authorized));
+          setInboxItems(await listPadInbox(invoke));
+          const payload = {
+            ok:
+              Number(scanned.copied ?? 0) >= 1 &&
+              Number(after.copied ?? 0) === 0 &&
+              after.authorized === false &&
+              constraints.holdsLock === false &&
+              constraints.writesRemote === false,
+            copied: scanned.copied ?? 0,
+            copiedAfterRevoke: after.copied ?? 0,
+            authorizedAfterRevoke: after.authorized === true,
+            holdsLock: constraints.holdsLock === true,
+            writesRemote: constraints.writesRemote === true,
+            reclaimRan: true,
+          };
+          await reportPadSafE2e(payload, invoke);
+          setStatus(
+            payload.ok
+              ? `SAF：拷贝 ${payload.copied} 后已撤销，后台不持锁`
+              : "SAF e2e 未通过",
+          );
+        }
       } catch (error) {
         const message = redactSecrets(
           error instanceof Error ? error.message : String(error),
@@ -575,6 +619,9 @@ export function App() {
           () => undefined,
         );
         await reportPadScanE2e({ ok: false, error: message }, invoke).catch(
+          () => undefined,
+        );
+        await reportPadSafE2e({ ok: false, error: message }, invoke).catch(
           () => undefined,
         );
       }
@@ -1312,6 +1359,12 @@ export function App() {
     if (!invoke) {
       setStatus("收件箱仅 Pad 可用");
       return;
+    }
+    try {
+      const scanned = (await invoke("saf_scan")) as { authorized?: boolean; copied?: number };
+      setSafAuthorized(Boolean(scanned.authorized));
+    } catch {
+      // SAF optional
     }
     const itemsListed = await listPadInbox(invoke);
     setInboxItems(itemsListed);
@@ -2550,6 +2603,44 @@ export function App() {
             <button type="button" data-testid="pad-inbox-refresh" onClick={() => void onRefreshInbox()}>
               刷新收件箱
             </button>
+            <button
+              type="button"
+              data-testid="pad-saf-pick"
+              onClick={() => {
+                const invoke = tauriInvokeFn();
+                if (invoke) {
+                  void invoke("saf_open_picker").then(async () => {
+                    const status = (await invoke("saf_status")) as {
+                      authorized?: boolean;
+                      label?: string;
+                    };
+                    setSafAuthorized(Boolean(status.authorized));
+                    setSafLabel(String(status.label ?? ""));
+                  });
+                }
+              }}
+            >
+              授权导出目录
+            </button>
+            <button
+              type="button"
+              data-testid="pad-saf-revoke"
+              onClick={() => {
+                const invoke = tauriInvokeFn();
+                if (invoke) {
+                  void invoke("saf_revoke").then(() => {
+                    setSafAuthorized(false);
+                    setSafLabel("");
+                    setStatus("已撤销 SAF 授权，停止扫描该目录");
+                  });
+                }
+              }}
+            >
+              撤销授权
+            </button>
+          </p>
+          <p data-testid="pad-saf-status">
+            {safAuthorized ? `已授权目录 ${safLabel || "export"}` : "未授权 SAF 导出目录"}
           </p>
           {inboxScan.libraryId ? (
             <p data-testid="pad-inbox-scan-bound">

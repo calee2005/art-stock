@@ -615,7 +615,7 @@
       "id": "F-092",
       "name": "Android SAF 授权目录与后台尽力同步",
       "phase": "P9",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-045"],
       "apps": ["android"],
       "designDoc": "docs/03-features/16-android-pad.md",

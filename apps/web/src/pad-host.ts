@@ -536,4 +536,35 @@ export async function reportPadScanE2e(
   await invoke("pad_scan_e2e_report", { status });
 }
 
+export async function loadPadSafE2eConfig(
+  invoke: TauriInvoke | null = tauriInvokeFn(),
+): Promise<Record<string, unknown> | null> {
+  if (!invoke) {
+    return null;
+  }
+  const value = (await invoke("pad_saf_e2e_config")) as Record<string, unknown> | null;
+  if (!value) {
+    return null;
+  }
+  const json = JSON.stringify(value);
+  if (json.toLowerCase().includes("secretaccesskey") || json.includes("super-secret")) {
+    throw new Error("pad-saf-e2e.json must not contain secrets");
+  }
+  return value;
+}
+
+export async function reportPadSafE2e(
+  status: Record<string, unknown>,
+  invoke: TauriInvoke | null = tauriInvokeFn(),
+): Promise<void> {
+  if (!invoke) {
+    return;
+  }
+  const json = JSON.stringify(status);
+  if (json.toLowerCase().includes("secretaccesskey") || json.includes("super-secret")) {
+    throw new Error("pad-saf-e2e-status must not contain secrets");
+  }
+  await invoke("pad_saf_e2e_report", { status });
+}
+
 export { demoStore };

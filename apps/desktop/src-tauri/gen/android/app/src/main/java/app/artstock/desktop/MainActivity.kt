@@ -10,6 +10,7 @@ class MainActivity : TauriActivity() {
     // Keep the WebView above the system taskbar so TabletShell nav stays tappable.
     KeystoreSecrets.nativeAttach(applicationContext)
     super.onCreate(savedInstanceState)
+    SafSyncWorker.enqueue(applicationContext)
     handleShare(intent)
   }
 

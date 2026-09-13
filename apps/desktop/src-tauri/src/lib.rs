@@ -6,6 +6,7 @@ mod android_jni;
 mod android_keystore;
 mod pad_e2e;
 mod inbox;
+mod saf;
 mod sandbox;
 mod secrets;
 mod thumb;
@@ -113,11 +114,19 @@ pub fn run() {
             pad_e2e::pad_wifi_e2e_report,
             pad_e2e::pad_scan_e2e_config,
             pad_e2e::pad_scan_e2e_report,
+            pad_e2e::pad_saf_e2e_config,
+            pad_e2e::pad_saf_e2e_report,
             inbox::inbox_list,
             inbox::inbox_read,
             inbox::inbox_remove,
             inbox::inbox_scan_load,
             inbox::inbox_scan_save,
+            saf::saf_status,
+            saf::saf_scan,
+            saf::saf_revoke,
+            saf::saf_open_picker,
+            saf::saf_grant_e2e,
+            saf::saf_constraints,
             network_kind
         ])
         .run(tauri::generate_context!())

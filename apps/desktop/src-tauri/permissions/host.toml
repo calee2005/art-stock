@@ -20,10 +20,18 @@ commands.allow = [
   "pad_wifi_e2e_report",
   "pad_scan_e2e_config",
   "pad_scan_e2e_report",
+  "pad_saf_e2e_config",
+  "pad_saf_e2e_report",
   "inbox_list",
   "inbox_read",
   "inbox_remove",
   "inbox_scan_load",
   "inbox_scan_save",
+  "saf_status",
+  "saf_scan",
+  "saf_revoke",
+  "saf_open_picker",
+  "saf_grant_e2e",
+  "saf_constraints",
   "network_kind"
 ]
