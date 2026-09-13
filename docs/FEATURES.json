@@ -189,7 +189,7 @@
       "id": "F-015",
       "name": "元数据与缩略图缓存 + 同步队列",
       "phase": "P1",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-012"],
       "apps": ["web", "desktop", "core"],
       "designDoc": "docs/03-features/05-sync.md",
@@ -198,7 +198,7 @@
         "锁占用时 UI 显示 deviceName 与 TTL，不盲写",
         "状态栏展示待提交条数"
       ],
-      "notes": ""
+      "notes": "pushSync pauses without draining; lock-held returns deviceName+ttlMs and leaves queue; pendingCount status bar. In-memory meta/thumb cache maps."
     },
     {
       "id": "F-020",
