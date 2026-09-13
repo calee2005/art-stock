@@ -19,7 +19,7 @@
       "id": "F-000",
       "name": "Monorepo 骨架（pnpm/Turbo/Cargo，空包边界）",
       "phase": "P0",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [],
       "apps": ["web", "desktop"],
       "designDoc": "docs/03-features/18-monorepo.md",
@@ -29,7 +29,7 @@
         "Cargo workspace 指向 desktop src-tauri 与 crates/native 占位",
         "gitignore 排除 node_modules、target、密钥文件"
       ],
-      "notes": ""
+      "notes": "pnpm/Turbo empty packages; Cargo workspace members art-stock + art-stock-native."
     },
     {
       "id": "F-001",
