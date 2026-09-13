@@ -5,6 +5,7 @@ mod android_jni;
 #[cfg(target_os = "android")]
 mod android_keystore;
 mod pad_e2e;
+mod inbox;
 mod sandbox;
 mod secrets;
 mod thumb;
@@ -93,7 +94,12 @@ pub fn run() {
             watch::watch_start,
             watch::watch_stop,
             pad_e2e::pad_e2e_config,
-            pad_e2e::pad_e2e_report
+            pad_e2e::pad_e2e_report,
+            pad_e2e::pad_share_e2e_config,
+            pad_e2e::pad_share_e2e_report,
+            inbox::inbox_list,
+            inbox::inbox_read,
+            inbox::inbox_remove
         ])
         .run(tauri::generate_context!())
         .expect("error while running Art Stock");

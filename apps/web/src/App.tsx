@@ -130,14 +130,19 @@ import {
 import {
   activeStore,
   applyPadE2eConfig,
+  importInboxToAssets,
   isAndroidPad,
+  listPadInbox,
   loadPadE2eConfig,
+  loadPadShareE2eConfig,
   localStorageHasSecret,
   persistRemoteForm,
   redactSecrets,
   reportPadE2e,
+  reportPadShareE2e,
   restoreRemoteForm,
   runPadBrowseAndUpload,
+  tauriInvokeFn,
   waitForTauriInvoke,
 } from "./pad-host.ts";
 import {
@@ -253,6 +258,7 @@ export function App() {
   const [assetTagFilter, setAssetTagFilter] = useState("");
   const [assetSearch, setAssetSearch] = useState("");
   const [selectedAssetId, setSelectedAssetId] = useState("");
+  const [inboxItems, setInboxItems] = useState<{ name: string; size: number; mimeGuess?: string }[]>([]);
   const [mdSource, setMdSource] = useState("");
   const [mdHtml, setMdHtml] = useState("");
   const [mdEditorKey, setMdEditorKey] = useState(0);
@@ -328,46 +334,76 @@ export function App() {
       }
       try {
         const e2e = await loadPadE2eConfig(invoke);
-        if (!e2e || cancelled) {
+        let current = restored;
+        if (e2e && !cancelled) {
+          current = applyPadE2eConfig(restored, e2e);
+          setForm(current);
+          await persistRemoteForm(storage, current, invoke);
+          const result = await runPadBrowseAndUpload({
+            store: activeStore(current),
+            form: current,
+            deviceId: device.deviceId,
+            deviceName: "pad",
+            libraryName: e2e.libraryName ?? "Pad库",
+            uploadBody: "from pad",
+            uploadName: e2e.uploadName,
+          });
+          if (cancelled) {
+            return;
+          }
+          setLibraries(result.libraryNames.map((name, index) => ({ id: `lib-${index}`, name })));
+          await refreshLibrariesFrom(current);
+          const chrome = tabletChrome(window.innerWidth, window.innerHeight);
+          const statusText = result.lockSeenDuringPut
+            ? `Pad 已持锁上传（token ${result.fencingToken}）`
+            : "Pad 上传完成但未看到锁";
+          setStatus(statusText);
+          await reportPadE2e(
+            {
+              ok: true,
+              libraries: result.libraryNames,
+              lockSeenDuringPut: result.lockSeenDuringPut,
+              fencingToken: result.fencingToken,
+              putKey: result.putKey,
+              chrome,
+              width: window.innerWidth,
+              height: window.innerHeight,
+              secretsInLocalStorage: localStorageHasSecret(storage, current.secretAccessKey),
+              tabletShell: true,
+            },
+            invoke,
+          );
+        }
+        if (!invoke || cancelled) {
           return;
         }
-        const next = applyPadE2eConfig(restored, e2e);
-        setForm(next);
-        await persistRemoteForm(storage, next, invoke);
-        const result = await runPadBrowseAndUpload({
-          store: activeStore(next),
-          form: next,
-          deviceId: device.deviceId,
-          deviceName: "pad",
-          libraryName: e2e.libraryName ?? "Pad库",
-          uploadBody: "from pad",
-          uploadName: e2e.uploadName,
-        });
-        if (cancelled) {
-          return;
+        const listed = await listPadInbox(invoke);
+        setInboxItems(listed);
+        const share = await loadPadShareE2eConfig(invoke);
+        if (share?.importTo === "assets" && listed[0]) {
+          const imported = await importInboxToAssets({
+            invoke,
+            remote: {
+              store: activeStore(current),
+              prefix: formToConfig(current).prefix,
+              deviceId: device.deviceId,
+              deviceName: "pad",
+            },
+            name: listed[0].name,
+            mimeType: listed[0].mimeGuess,
+          });
+          setInboxItems(await listPadInbox(invoke));
+          setStatus(`分享已导入素材库 ${imported.name}`);
+          await reportPadShareE2e(
+            {
+              ok: true,
+              inbox: listed.map((item) => item.name),
+              assetId: imported.assetId,
+              importedTo: "assets",
+            },
+            invoke,
+          );
         }
-        setLibraries(result.libraryNames.map((name, index) => ({ id: `lib-${index}`, name })));
-        await refreshLibrariesFrom(next);
-        const chrome = tabletChrome(window.innerWidth, window.innerHeight);
-        const statusText = result.lockSeenDuringPut
-          ? `Pad 已持锁上传（token ${result.fencingToken}）`
-          : "Pad 上传完成但未看到锁";
-        setStatus(statusText);
-        await reportPadE2e(
-          {
-            ok: true,
-            libraries: result.libraryNames,
-            lockSeenDuringPut: result.lockSeenDuringPut,
-            fencingToken: result.fencingToken,
-            putKey: result.putKey,
-            chrome,
-            width: window.innerWidth,
-            height: window.innerHeight,
-            secretsInLocalStorage: localStorageHasSecret(storage, next.secretAccessKey),
-            tabletShell: true,
-          },
-          invoke,
-        );
       } catch (error) {
         const message = redactSecrets(
           error instanceof Error ? error.message : String(error),
@@ -378,6 +414,9 @@ export function App() {
           { ok: false, error: message, tabletShell: true },
           invoke,
         ).catch(() => undefined);
+        await reportPadShareE2e({ ok: false, error: message }, invoke).catch(
+          () => undefined,
+        );
       }
     })();
     return () => {
@@ -1092,6 +1131,32 @@ export function App() {
       await refreshAssets();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "素材导入失败");
+    }
+  }
+
+  async function onImportInbox(name: string) {
+    if (!canWrite) {
+      setStatus("只读模式：写入口已禁用");
+      return;
+    }
+    const invoke = tauriInvokeFn();
+    if (!invoke) {
+      setStatus("收件箱仅 Pad 可用");
+      return;
+    }
+    try {
+      const item = inboxItems.find((entry) => entry.name === name);
+      const imported = await importInboxToAssets({
+        invoke,
+        remote: lockTarget(),
+        name,
+        mimeType: item?.mimeGuess,
+      });
+      setInboxItems(await listPadInbox(invoke));
+      setStatus(`分享已导入素材库 ${imported.name}`);
+      await refreshAssets();
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "收件箱导入失败");
     }
   }
 
@@ -2241,6 +2306,28 @@ export function App() {
         </section>
       ) : null}
       <h2 id="pane-assets">素材</h2>
+      {padHost ? (
+        <section data-testid="pad-inbox">
+          <h3>收件箱</h3>
+          <p>其它 App 分享的图片会先落到本机收件箱，再归档到素材库（持锁上传）。</p>
+          <ul data-testid="pad-inbox-list">
+            {inboxItems.length === 0 ? <li>收件箱为空</li> : null}
+            {inboxItems.map((item) => (
+              <li key={item.name}>
+                {item.name} · {item.size} B
+                <button
+                  type="button"
+                  data-testid="pad-inbox-import"
+                  disabled={!canWrite}
+                  onClick={() => void onImportInbox(item.name)}
+                >
+                  导入素材库
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <p>
         全局素材库。默认同步元数据与 thumb.webp，原图按需取回，不写入每台设备磁盘。
       </p>

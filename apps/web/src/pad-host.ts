@@ -1,8 +1,10 @@
 import {
   MemoryObjectStore,
   createLibrary,
+  importAsset,
   listLibraries,
   type ObjectStore,
+  type RemoteLockTarget,
 } from "@art-stock/core";
 import { S3ObjectStore } from "@art-stock/s3";
 import {
@@ -245,6 +247,78 @@ export async function runPadBrowseAndUpload(input: {
     fencingToken: put.fencingToken,
     putKey: put.putKey,
   };
+}
+
+export type InboxItem = {
+  name: string;
+  size: number;
+  mimeGuess?: string;
+};
+
+export function bytesFromInvoke(raw: unknown): Uint8Array {
+  if (raw instanceof Uint8Array) {
+    return raw;
+  }
+  if (Array.isArray(raw)) {
+    return Uint8Array.from(raw as number[]);
+  }
+  if (raw && typeof raw === "object" && Array.isArray((raw as { data?: unknown }).data)) {
+    return Uint8Array.from((raw as { data: number[] }).data);
+  }
+  throw new Error("inbox_read did not return bytes");
+}
+
+export async function listPadInbox(invoke: TauriInvoke): Promise<InboxItem[]> {
+  const listed = (await invoke("inbox_list")) as InboxItem[] | null;
+  return listed ?? [];
+}
+
+export async function importInboxToAssets(input: {
+  invoke: TauriInvoke;
+  remote: RemoteLockTarget;
+  name: string;
+  mimeType?: string;
+}): Promise<{ assetId: string; name: string }> {
+  const raw = await input.invoke("inbox_read", { name: input.name });
+  const bytes = bytesFromInvoke(raw);
+  const item = await importAsset(input.remote, {
+    name: input.name,
+    bytes,
+    mimeType: input.mimeType ?? "image/png",
+  });
+  await input.invoke("inbox_remove", { name: input.name });
+  return { assetId: item.id, name: input.name };
+}
+
+export async function loadPadShareE2eConfig(
+  invoke: TauriInvoke | null = tauriInvokeFn(),
+): Promise<{ importTo?: string } | null> {
+  if (!invoke) {
+    return null;
+  }
+  const value = (await invoke("pad_share_e2e_config")) as { importTo?: string } | null;
+  if (!value) {
+    return null;
+  }
+  const json = JSON.stringify(value);
+  if (json.toLowerCase().includes("secretaccesskey") || json.includes("super-secret")) {
+    throw new Error("pad-share-e2e.json must not contain secrets");
+  }
+  return value;
+}
+
+export async function reportPadShareE2e(
+  status: Record<string, unknown>,
+  invoke: TauriInvoke | null = tauriInvokeFn(),
+): Promise<void> {
+  if (!invoke) {
+    return;
+  }
+  const json = JSON.stringify(status);
+  if (json.toLowerCase().includes("secretaccesskey") || json.includes("super-secret")) {
+    throw new Error("pad-share-e2e-status must not contain secrets");
+  }
+  await invoke("pad_share_e2e_report", { status });
 }
 
 export { demoStore };

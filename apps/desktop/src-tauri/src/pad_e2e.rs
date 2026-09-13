@@ -47,7 +47,16 @@ fn app_file(app: &tauri::AppHandle, name: &str) -> Result<PathBuf, String> {
 
 #[tauri::command]
 pub fn pad_e2e_config(app: tauri::AppHandle) -> Result<Option<Value>, String> {
-    let path = app_file(&app, "pad-e2e.json")?;
+    read_e2e_json(&app, "pad-e2e.json")
+}
+
+#[tauri::command]
+pub fn pad_e2e_report(app: tauri::AppHandle, status: Value) -> Result<(), String> {
+    write_e2e_json(&app, "pad-e2e-status.json", status)
+}
+
+fn read_e2e_json(app: &tauri::AppHandle, name: &str) -> Result<Option<Value>, String> {
+    let path = app_file(app, name)?;
     if !path.exists() {
         return Ok(None);
     }
@@ -57,12 +66,21 @@ pub fn pad_e2e_config(app: tauri::AppHandle) -> Result<Option<Value>, String> {
     Ok(Some(value))
 }
 
-#[tauri::command]
-pub fn pad_e2e_report(app: tauri::AppHandle, status: Value) -> Result<(), String> {
+fn write_e2e_json(app: &tauri::AppHandle, name: &str, status: Value) -> Result<(), String> {
     let raw = serde_json::to_string_pretty(&status).map_err(|err| err.to_string())?;
     assert_no_secret_material(&raw)?;
-    let path = app_file(&app, "pad-e2e-status.json")?;
+    let path = app_file(app, name)?;
     fs::write(path, raw).map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+pub fn pad_share_e2e_config(app: tauri::AppHandle) -> Result<Option<Value>, String> {
+    read_e2e_json(&app, "pad-share-e2e.json")
+}
+
+#[tauri::command]
+pub fn pad_share_e2e_report(app: tauri::AppHandle, status: Value) -> Result<(), String> {
+    write_e2e_json(&app, "pad-share-e2e-status.json", status)
 }
 
 #[cfg(test)]

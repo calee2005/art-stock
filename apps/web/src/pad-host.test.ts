@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   createLibrary,
   defaultRemoteConfig,
+  listAssets,
   listLibraries,
 } from "@art-stock/core";
 import { listenS3Mock } from "../../../packages/s3/src/mock-http.ts";
@@ -10,6 +11,8 @@ import { S3ObjectStore } from "@art-stock/s3";
 import {
   applyPadE2eConfig,
   assertPublicE2eConfig,
+  bytesFromInvoke,
+  importInboxToAssets,
   isAndroidUserAgent,
   persistRemoteForm,
   redactSecrets,
@@ -150,6 +153,57 @@ test("redactSecrets never leaves the OSS secret in status text", () => {
     redactSecrets("failed super-secret-oss boom", ["super-secret-oss"]),
     "failed [redacted] boom",
   );
+});
+
+test("inbox bytes import to assets under withRemoteLock and leave the inbox", async () => {
+  const png = Uint8Array.from([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+    0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+    0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xde, 0x00, 0x00, 0x00,
+    0x0c, 0x49, 0x44, 0x41, 0x54, 0x08, 0xd7, 0x63, 0xf8, 0xcf, 0xc0, 0x00,
+    0x00, 0x00, 0x03, 0x00, 0x01, 0x18, 0xdd, 0x8d, 0xb0, 0x00, 0x00, 0x00,
+    0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+  ]);
+  assert.deepEqual(bytesFromInvoke([...png]), png);
+  const mock = await listenS3Mock({ bucket: "art", accessKeyId: "AKIATEST", port: 0 });
+  const store = new S3ObjectStore(
+    defaultRemoteConfig({
+      id: "pad",
+      name: "pad",
+      endpoint: mock.url,
+      bucket: "art",
+      accessKeyId: "AKIATEST",
+      secretAccessKey: "super-secret-oss",
+      forcePathStyle: true,
+      mode: "readwrite",
+    }),
+  );
+  const inbox = new Map<string, Uint8Array>([["from-gallery.png", png]]);
+  try {
+    const result = await importInboxToAssets({
+      invoke: async (cmd, args) => {
+        if (cmd === "inbox_read") {
+          return [...(inbox.get(String(args?.name)) ?? [])];
+        }
+        if (cmd === "inbox_remove") {
+          inbox.delete(String(args?.name));
+          return null;
+        }
+        return null;
+      },
+      remote: { store, prefix: "", deviceId: "pad-1", deviceName: "pad" },
+      name: "from-gallery.png",
+      mimeType: "image/png",
+    });
+    assert.equal(result.name, "from-gallery.png");
+    assert.equal(inbox.size, 0);
+    const assets = await listAssets(store, "");
+    assert.equal(assets[0]?.name, "from-gallery.png");
+    const lock = await store.get(".artstock/v1/lock.json");
+    assert.equal(lock, null);
+  } finally {
+    await mock.close();
+  }
 });
 
 test("createLibrary uses the same store as listLibraries on the HTTP mock", async () => {
