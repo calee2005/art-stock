@@ -29,8 +29,13 @@ import {
   createItem,
   moveItem,
   commitSnapshot,
+  createBranch,
+  deleteBranch,
+  getObjectMeta,
+  listBranches,
   listSnapshots,
   rollbackBranch,
+  switchDefaultBranch,
   type ImportQueue,
   type SyncState,
   type ObjectStore,
@@ -39,6 +44,7 @@ import {
   type KanbanList,
   type KanbanItem,
   type Snapshot,
+  type BranchPointer,
 } from "@art-stock/core";
 import {
   deviceIdentity,
@@ -102,6 +108,10 @@ export function App() {
   const [itemListId, setItemListId] = useState("");
   const [detailItemId, setDetailItemId] = useState<string | null>(null);
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
+  const [branches, setBranches] = useState<BranchPointer[]>([]);
+  const [defaultBranch, setDefaultBranch] = useState("main");
+  const [activeBranch, setActiveBranch] = useState("main");
+  const [newBranchName, setNewBranchName] = useState("alt");
   const [snapshotMessage, setSnapshotMessage] = useState("commit");
   const [snapshotBody, setSnapshotBody] = useState("");
   const device = useMemo(() => deviceIdentity(storage), []);
@@ -377,12 +387,27 @@ export function App() {
   }
 
   async function refreshSnapshots(objectId: string) {
-    const listed = await listSnapshots(
-      activeStore(form),
-      formToConfig(form).prefix,
-      objectId,
-    );
+    const prefix = formToConfig(form).prefix;
+    const store = activeStore(form);
+    const [listed, branchList, meta] = await Promise.all([
+      listSnapshots(store, prefix, objectId),
+      listBranches(store, prefix, objectId),
+      getObjectMeta(lockTarget(), objectId),
+    ]);
     setSnapshots(listed);
+    setBranches(branchList);
+    const nextDefault = meta?.defaultBranch ?? "main";
+    setDefaultBranch(nextDefault);
+    setActiveBranch((current) =>
+      branchList.some((item) => item.name === current) ? current : nextDefault,
+    );
+  }
+
+  function clearVersionUi() {
+    setSnapshots([]);
+    setBranches([]);
+    setDefaultBranch("main");
+    setActiveBranch("main");
   }
 
   async function onCommitSnapshot() {
@@ -397,9 +422,62 @@ export function App() {
       node.objectId,
       bytes,
       snapshotMessage,
+      activeBranch,
     );
-    setStatus(`已提交快照 ${snap.id.slice(0, 8)}`);
+    setStatus(`已在 ${activeBranch} 提交快照 ${snap.id.slice(0, 8)}`);
     await refreshSnapshots(node.objectId);
+  }
+
+  async function onCreateBranch() {
+    const node = treeNodes.find((item) => item.id === selectedNodeId);
+    if (!canWrite || !node?.objectId) {
+      setStatus("请选择文件节点");
+      return;
+    }
+    try {
+      const created = await createBranch(
+        lockTarget(),
+        node.objectId,
+        newBranchName,
+        activeBranch,
+      );
+      setStatus(
+        `已从 ${activeBranch} 的当前快照建命名分支 ${created.name}（非 Git）`,
+      );
+      setActiveBranch(created.name);
+      await refreshSnapshots(node.objectId);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "建分支失败");
+    }
+  }
+
+  async function onSwitchDefaultBranch(name: string) {
+    const node = treeNodes.find((item) => item.id === selectedNodeId);
+    if (!canWrite || !node?.objectId) {
+      return;
+    }
+    try {
+      await switchDefaultBranch(lockTarget(), node.objectId, name);
+      setActiveBranch(name);
+      setStatus(`默认分支已切换为 ${name}`);
+      await refreshSnapshots(node.objectId);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "切换分支失败");
+    }
+  }
+
+  async function onDeleteBranch(name: string) {
+    const node = treeNodes.find((item) => item.id === selectedNodeId);
+    if (!canWrite || !node?.objectId) {
+      return;
+    }
+    try {
+      await deleteBranch(lockTarget(), node.objectId, name);
+      setStatus(`已删除命名分支 ${name}`);
+      await refreshSnapshots(node.objectId);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "删除分支失败");
+    }
   }
 
   async function onRollback(snapshotId: string) {
@@ -407,8 +485,8 @@ export function App() {
     if (!canWrite || !node?.objectId) {
       return;
     }
-    await rollbackBranch(lockTarget(), node.objectId, snapshotId);
-    setStatus(`已回滚分支指针到 ${snapshotId.slice(0, 8)}，历史未删`);
+    await rollbackBranch(lockTarget(), node.objectId, snapshotId, activeBranch);
+    setStatus(`已回滚 ${activeBranch} 指针到 ${snapshotId.slice(0, 8)}，历史未删`);
     await refreshSnapshots(node.objectId);
   }
 
@@ -686,7 +764,7 @@ export function App() {
                       if (node.objectId) {
                         void refreshSnapshots(node.objectId);
                       } else {
-                        setSnapshots([]);
+                        clearVersionUi();
                       }
                     }}
                     style={{
@@ -742,6 +820,54 @@ export function App() {
           ) : null}
           {treeNodes.find((node) => node.id === selectedNodeId)?.objectId ? (
             <section>
+              <h3>命名分支（快照指针，不是 Git）</h3>
+              <p>
+                默认 <code>{defaultBranch}</code>；提交/回滚目标{" "}
+                <select
+                  value={activeBranch}
+                  onChange={(e) => setActiveBranch(e.target.value)}
+                >
+                  {branches.map((branch) => (
+                    <option key={branch.name} value={branch.name}>
+                      {branch.name} → {branch.snapshotId.slice(0, 8)}
+                    </option>
+                  ))}
+                </select>
+              </p>
+              <ul>
+                {branches.map((branch) => (
+                  <li key={branch.name}>
+                    {branch.name} <code>{branch.snapshotId.slice(0, 8)}</code>
+                    <button
+                      type="button"
+                      disabled={!canWrite}
+                      onClick={() => void onSwitchDefaultBranch(branch.name)}
+                    >
+                      设为默认
+                    </button>
+                    {branch.name !== "main" ? (
+                      <button
+                        type="button"
+                        disabled={!canWrite}
+                        onClick={() => void onDeleteBranch(branch.name)}
+                      >
+                        删除
+                      </button>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+              <label>
+                新分支名
+                <input
+                  value={newBranchName}
+                  onChange={(e) => setNewBranchName(e.target.value)}
+                  placeholder="alt"
+                />
+              </label>
+              <button type="button" onClick={() => void onCreateBranch()} disabled={!canWrite}>
+                从当前快照建分支
+              </button>
               <h3>快照</h3>
               <label>
                 message
@@ -764,7 +890,7 @@ export function App() {
               <ul>
                 {snapshots.map((snap) => (
                   <li key={snap.id}>
-                    {snap.message} <code>{snap.id.slice(0, 8)}</code>
+                    [{snap.branch}] {snap.message} <code>{snap.id.slice(0, 8)}</code>
                     <button
                       type="button"
                       disabled={!canWrite}

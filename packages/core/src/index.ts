@@ -65,6 +65,7 @@ export {
   lockKey,
   manifestKey,
   objectBranchKey,
+  objectBranchesPrefix,
   objectKey,
   objectMetaKey,
   objectSnapshotKey,
@@ -182,7 +183,12 @@ export {
 
 export {
   commitSnapshot,
+  createBranch,
+  deleteBranch,
   getBranch,
+  listBranches,
   listSnapshots,
   rollbackBranch,
+  switchDefaultBranch,
+  validateBranchName,
 } from "./versions.ts";

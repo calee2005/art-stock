@@ -42,7 +42,7 @@ Agent 以 [FEATURES.json](FEATURES.json) 为任务源，本文件为可读勾选
 
 - [x] **F-040** 手动 snapshot 与回滚 — [03-artwork-versions](03-features/03-artwork-versions.md)
 - [ ] **F-041** 桌面监视自动快照（F-040, F-014）
-- [ ] **F-042** 命名分支（F-040）
+- [x] **F-042** 命名分支（F-040）
 - [ ] **F-043** 分叉生成 `conflict/*`（F-042）
 - [ ] **F-044** 钉选 / 按需取回 / 清理（F-015）
 - [ ] **F-045** Pad 收件箱扫描（F-033, F-040）

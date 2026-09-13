@@ -3,6 +3,7 @@ import { sha256Hex } from "./hash.ts";
 import {
   blobKey,
   objectBranchKey,
+  objectBranchesPrefix,
   objectMetaKey,
   objectSnapshotKey,
   objectSnapshotsPrefix,
@@ -183,6 +184,149 @@ export async function rollbackBranch(
         { contentType: "application/json", ifMatch: current.etag },
       );
       return pointer;
+    },
+    lockOpts(options),
+  );
+}
+
+const BRANCH_NAME = /^[A-Za-z0-9._/-]+$/;
+
+export function validateBranchName(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed || trimmed.length > 64) {
+    throw new Error("Branch name must be 1–64 characters");
+  }
+  if (
+    !BRANCH_NAME.test(trimmed) ||
+    trimmed.includes("..") ||
+    trimmed.startsWith("/") ||
+    trimmed.endsWith("/")
+  ) {
+    throw new Error("Branch name must match [A-Za-z0-9._/-]+ and is not a Git ref");
+  }
+  return trimmed;
+}
+
+export async function listBranches(
+  store: ObjectStore,
+  prefix: string,
+  objectId: string,
+): Promise<BranchPointer[]> {
+  const listed = await store.list(objectBranchesPrefix(prefix, objectId));
+  const branches: BranchPointer[] = [];
+  for (const object of listed.keys) {
+    const got = await store.get(object.key);
+    if (!got) {
+      continue;
+    }
+    branches.push(decodeJson(got.body) as BranchPointer);
+  }
+  return branches.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function createBranch(
+  remote: RemoteLockTarget,
+  objectId: string,
+  name: string,
+  fromBranch?: string,
+  options?: WithRemoteLockOptions,
+): Promise<BranchPointer> {
+  const branchName = validateBranchName(name);
+  const prefix = remote.prefix ?? "";
+  return withRemoteLock(
+    remote,
+    "sync",
+    async () => {
+      const metaGot = await remote.store.get(objectMetaKey(prefix, objectId));
+      if (!metaGot) {
+        throw new Error(`Object not found: ${objectId}`);
+      }
+      const meta = decodeJson(metaGot.body) as ObjectMeta;
+      const sourceName = fromBranch ?? meta.defaultBranch;
+      const source = await getBranch(remote.store, prefix, objectId, sourceName);
+      if (!source) {
+        throw new Error(`Source branch not found: ${sourceName}`);
+      }
+      const pointer: BranchPointer = {
+        name: branchName,
+        snapshotId: source.pointer.snapshotId,
+        updatedAt: nowIso(),
+        updatedBy: remote.deviceId,
+      };
+      await remote.store.put(
+        objectBranchKey(prefix, objectId, branchName),
+        encodeJson(pointer),
+        { contentType: "application/json", ifNoneMatch: "*", forbidOverwrite: true },
+      );
+      return pointer;
+    },
+    lockOpts(options),
+  );
+}
+
+export async function switchDefaultBranch(
+  remote: RemoteLockTarget,
+  objectId: string,
+  name: string,
+  options?: WithRemoteLockOptions,
+): Promise<ObjectMeta> {
+  const branchName = validateBranchName(name);
+  const prefix = remote.prefix ?? "";
+  return withRemoteLock(
+    remote,
+    "sync",
+    async () => {
+      const target = await getBranch(remote.store, prefix, objectId, branchName);
+      if (!target) {
+        throw new Error(`Branch not found: ${branchName}`);
+      }
+      const metaGot = await remote.store.get(objectMetaKey(prefix, objectId));
+      if (!metaGot) {
+        throw new Error(`Object not found: ${objectId}`);
+      }
+      const meta = decodeJson(metaGot.body) as ObjectMeta;
+      meta.defaultBranch = branchName;
+      meta.updatedAt = nowIso();
+      await remote.store.put(objectMetaKey(prefix, objectId), encodeJson(meta), {
+        contentType: "application/json",
+        ifMatch: metaGot.etag,
+      });
+      return meta;
+    },
+    lockOpts(options),
+  );
+}
+
+export async function deleteBranch(
+  remote: RemoteLockTarget,
+  objectId: string,
+  name: string,
+  options?: WithRemoteLockOptions,
+): Promise<void> {
+  const branchName = validateBranchName(name);
+  if (branchName === "main") {
+    throw new Error("Cannot delete main");
+  }
+  const prefix = remote.prefix ?? "";
+  return withRemoteLock(
+    remote,
+    "sync",
+    async () => {
+      const metaGot = await remote.store.get(objectMetaKey(prefix, objectId));
+      if (!metaGot) {
+        throw new Error(`Object not found: ${objectId}`);
+      }
+      const meta = decodeJson(metaGot.body) as ObjectMeta;
+      if (meta.defaultBranch === branchName) {
+        throw new Error("Cannot delete the default branch");
+      }
+      const current = await getBranch(remote.store, prefix, objectId, branchName);
+      if (!current) {
+        throw new Error(`Branch not found: ${branchName}`);
+      }
+      await remote.store.delete(objectBranchKey(prefix, objectId, branchName), {
+        ifMatch: current.etag,
+      });
     },
     lockOpts(options),
   );

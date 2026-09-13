@@ -47,6 +47,13 @@ export function objectBranchKey(
   return objectKey(prefix, `objects/${objectId}/branches/${branch}.json`);
 }
 
+export function objectBranchesPrefix(
+  prefix: string = DEFAULT_REMOTE_PREFIX,
+  objectId: string,
+): string {
+  return objectKey(prefix, `objects/${objectId}/branches/`);
+}
+
 export function objectSnapshotKey(
   prefix: string = DEFAULT_REMOTE_PREFIX,
   objectId: string,

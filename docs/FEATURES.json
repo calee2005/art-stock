@@ -332,11 +332,12 @@
       "id": "F-042",
       "name": "命名分支 CRUD 与切换",
       "phase": "P4",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-040"],
       "apps": ["web", "desktop", "core"],
       "designDoc": "docs/03-features/03-artwork-versions.md",
-      "acceptance": ["从当前 snapshot 建分支", "在 alt 上 commit 不影响 main 指针"]
+      "acceptance": ["从当前 snapshot 建分支", "在 alt 上 commit 不影响 main 指针"],
+      "notes": "Named pointers via createBranch/listBranches/switchDefaultBranch/deleteBranch; validateBranchName [A-Za-z0-9._/-]+ ≤64; commitSnapshot on alt does not If-Match-update main."
     },
     {
       "id": "F-043",
