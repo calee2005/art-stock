@@ -144,7 +144,7 @@ export function localStorageHasSecret(storage: StorageLike, secret: string): boo
   if (!secret) {
     return false;
   }
-  const keys = ["art-stock.device", "art-stock.remote-config", "art-stock.pins"];
+  const keys = ["art-stock.device", "art-stock.remote-config", "art-stock.pins", "art-stock.vision-provider"];
   for (const key of keys) {
     const raw = storage.getItem(key);
     if (raw?.includes(secret)) {

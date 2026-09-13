@@ -95,6 +95,45 @@ export type SnapshotPolicy = {
 
 export type AssetRating = 0 | 1 | 2 | 3 | 4 | 5;
 
+export type VisionTagGroup = {
+  dimension: string;
+  tags: string[];
+};
+
+export type VisionTags = {
+  groups: VisionTagGroup[];
+  model: string;
+  taggedAt: Iso8601;
+  promptHash: Sha256Hex;
+};
+
+/** Local-only vision model credentials. Never written to S3. */
+export type VisionProviderConfig = {
+  id: string;
+  name: string;
+  endpoint: string;
+  model: string;
+  apiKey: string;
+  apiStyle: "openai-chat-completions";
+};
+
+export type VisionTagSettings = {
+  schemaVersion: SchemaVersion;
+  enabled: boolean;
+  providerId?: string;
+  triggers: {
+    onImport: boolean;
+    onImportOnlyIfEmpty: boolean;
+  };
+  sendImage: {
+    maxEdgePx: number;
+    jpegQuality: number;
+    wifiOnly: boolean;
+  };
+  prompt: string;
+  updatedAt: Iso8601;
+};
+
 export type AssetItem = {
   schemaVersion: SchemaVersion;
   id: Uuid;
@@ -110,6 +149,7 @@ export type AssetItem = {
   blobSha256: Sha256Hex;
   thumbKey: string;
   sourceObjectId?: Uuid;
+  visionTags?: VisionTags;
   createdAt: Iso8601;
   updatedAt: Iso8601;
 };

@@ -37,6 +37,7 @@ Agent 以 [FEATURES.json](FEATURES.json) 为任务源，本文件为可读勾选
 - [x] **F-031** 文件夹、标签、评分（F-030）
 - [x] **F-032** FTS / MiniSearch（F-031）
 - [x] **F-033** Pad 分享导入（F-023, F-030）
+- [x] **F-034** 视觉模型自动打标签 — [19-auto-tag](03-features/19-auto-tag.md)（F-031）
 
 ## P4 快照、冲突、钉选
 

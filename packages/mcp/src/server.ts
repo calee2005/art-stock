@@ -11,13 +11,20 @@ import {
   listSnapshots,
   listWorkspaces,
   moveItem,
+  needsUntaggedScan,
   parseMindDoc,
   readBranchBytes,
   readTree,
   searchAssets,
+  tagAssetWithVision,
   updateItem,
   type ObjectStore,
   type RemoteLockTarget,
+  type VisionChatClient,
+  type VisionJpegEncoder,
+  type VisionProviderConfig,
+  type VisionTagSettings,
+  type NetworkKind,
 } from "@art-stock/core";
 
 export type McpRemotePublic = {
@@ -32,6 +39,13 @@ export type McpSession = {
   prefix: string;
   deviceId: string;
   deviceName: string;
+  vision?: {
+    provider: VisionProviderConfig;
+    settings: VisionTagSettings;
+    client: VisionChatClient;
+    encoder?: VisionJpegEncoder;
+    network?: NetworkKind;
+  };
 };
 
 const TOOLS = [
@@ -47,6 +61,7 @@ const TOOLS = [
   { name: "kanban_create_item", description: "Create a kanban item" },
   { name: "kanban_move_item", description: "Move an item to another list" },
   { name: "kanban_update_item", description: "Update an item" },
+  { name: "auto_tag_assets", description: "Queue vision auto-tag; never returns API keys" },
 ] as const;
 
 export function listMcpTools() {
@@ -62,10 +77,15 @@ export function lockTarget(session: McpSession): RemoteLockTarget {
   };
 }
 
-export function assertNoSecrets(value: unknown): unknown {
+export function assertNoSecrets(value: unknown, extraSecrets: string[] = []): unknown {
   const text = JSON.stringify(value);
   if (/secretAccessKey|secret_access_key/i.test(text)) {
     throw new Error("Refusing to return credentials");
+  }
+  for (const secret of extraSecrets) {
+    if (secret && text.includes(secret)) {
+      throw new Error("Refusing to return credentials");
+    }
   }
   return value;
 }
@@ -84,7 +104,9 @@ export async function callMcpTool(
   args: Record<string, unknown> = {},
 ): Promise<unknown> {
   try {
-    return assertNoSecrets(await dispatch(session, name, args));
+    return assertNoSecrets(await dispatch(session, name, args), [
+      session.vision?.provider.apiKey ?? "",
+    ]);
   } catch (error) {
     if (isRemoteError(error) && error.code === "REMOTE_LOCK_HELD") {
       return { error: "REMOTE_LOCK_HELD" };
@@ -214,6 +236,43 @@ async function dispatch(
         title: typeof args.title === "string" ? args.title : undefined,
       });
       return { item };
+    }
+    case "auto_tag_assets": {
+      if (!session.vision?.provider.apiKey) {
+        return { error: "VISION_NO_KEY", queued: 0 };
+      }
+      const settings = session.vision.settings;
+      if (!settings.enabled) {
+        return { error: "VISION_DISABLED", queued: 0 };
+      }
+      const assets = await listAssets(store, prefix);
+      const requested: string[] = [];
+      if (typeof args.assetId === "string" && args.assetId) {
+        requested.push(args.assetId);
+      }
+      if (Array.isArray(args.assetIds)) {
+        for (const id of args.assetIds) {
+          if (typeof id === "string" && id) {
+            requested.push(id);
+          }
+        }
+      }
+      const targets =
+        args.untagged === true
+          ? assets.filter((item) => needsUntaggedScan(item)).map((item) => item.id)
+          : requested;
+      const tagged: { id: string; tags: string[] }[] = [];
+      for (const id of targets) {
+        const item = await tagAssetWithVision(remote, id, {
+          provider: session.vision.provider,
+          settings,
+          client: session.vision.client,
+          encoder: session.vision.encoder,
+          network: session.vision.network ?? "wifi",
+        });
+        tagged.push({ id: item.id, tags: item.tags });
+      }
+      return { tagged, queued: tagged.length };
     }
     default:
       throw new Error(`Unknown tool: ${name}`);
