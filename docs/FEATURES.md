@@ -26,7 +26,7 @@ Agent 以 [FEATURES.json](FEATURES.json) 为任务源，本文件为可读勾选
 
 ## P2 Tablet + Android 通路
 
-- [ ] **F-020** Tablet shell 横屏/竖屏 — [16-android-pad](03-features/16-android-pad.md)
+- [x] **F-020** Tablet shell 横屏/竖屏 — [16-android-pad](03-features/16-android-pad.md)
 - [ ] **F-021** Android Keystore 存密钥（F-005, F-004）
 - [ ] **F-022** 沙箱 SQLite 与 pinned/缓存分离（F-021, F-015）
 - [ ] **F-023** Pad 真机：OSS 浏览与上传（F-020, F-022, F-010）

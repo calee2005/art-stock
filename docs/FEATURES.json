@@ -204,7 +204,7 @@
       "id": "F-020",
       "name": "Tablet shell 横屏/竖屏",
       "phase": "P2",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-000"],
       "apps": ["web", "android"],
       "designDoc": "docs/03-features/16-android-pad.md",
@@ -213,7 +213,7 @@
         "触控热区文档要求落实到主要导航",
         "Web 窄屏使用同一壳"
       ],
-      "notes": ""
+      "notes": "packages/ui TabletShell: landscape sidebar / portrait bottom; TOUCH_MIN_PX=44; pickAppShell ≤899px uses the same shell on Web."
     },
     {
       "id": "F-021",

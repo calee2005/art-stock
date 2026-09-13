@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   MemoryObjectStore,
   createFolder,
@@ -46,6 +46,12 @@ import {
   type Snapshot,
   type BranchPointer,
 } from "@art-stock/core";
+import {
+  TabletShell,
+  pickAppShell,
+  tabletChrome,
+  type NavId,
+} from "@art-stock/ui";
 import {
   deviceIdentity,
   emptyRemoteForm,
@@ -114,12 +120,28 @@ export function App() {
   const [newBranchName, setNewBranchName] = useState("alt");
   const [snapshotMessage, setSnapshotMessage] = useState("commit");
   const [snapshotBody, setSnapshotBody] = useState("");
+  const [viewport, setViewport] = useState(() => ({
+    width: typeof window === "undefined" ? 1024 : window.innerWidth,
+    height: typeof window === "undefined" ? 768 : window.innerHeight,
+  }));
+  const [pane, setPane] = useState<NavId>("library");
   const device = useMemo(() => deviceIdentity(storage), []);
   const preview = useMemo(
     () => protocolRoot(form.prefix),
     [form.prefix],
   );
   const canWrite = form.mode === "readwrite";
+
+  useEffect(() => {
+    const sync = () =>
+      setViewport({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener("resize", sync);
+    window.addEventListener("orientationchange", sync);
+    return () => {
+      window.removeEventListener("resize", sync);
+      window.removeEventListener("orientationchange", sync);
+    };
+  }, []);
 
   function update<K extends keyof RemoteForm>(key: K, value: RemoteForm[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -571,9 +593,9 @@ export function App() {
     await openBoard(selectedBoardId);
   }
 
-  return (
+  const page = (
     <div style={{ fontFamily: "system-ui, sans-serif", maxWidth: 720, margin: "2rem auto", padding: "0 1rem" }}>
-      <h1>Art Stock Web</h1>
+      <h1 id="pane-remote">Art Stock Web</h1>
       <p role="status" style={{ background: "#eef2ff", padding: "0.5rem 0.75rem" }}>
         状态栏：待提交 {pendingCount(sync)}
         {sync.paused ? " · 已暂停" : " · 同步开启"}
@@ -690,7 +712,7 @@ export function App() {
           <li key={key}>{key}</li>
         ))}
       </ul>
-      <h2>资料库</h2>
+      <h2 id="pane-library">资料库</h2>
       <p>
         <button type="button" onClick={() => void refreshLibraries()}>
           刷新列表
@@ -995,7 +1017,9 @@ export function App() {
           </p>
         </section>
       ) : null}
-      <h2>看板</h2>
+      <h2 id="pane-assets">素材</h2>
+      <p>素材库导入与缩略图见 F-030。</p>
+      <h2 id="pane-kanban">看板</h2>
       <p>
         <button type="button" onClick={() => void refreshKanban()}>
           刷新 Workspace
@@ -1203,4 +1227,23 @@ export function App() {
       `}</style>
     </div>
   );
+
+  if (pickAppShell(viewport.width) === "tablet") {
+    return (
+      <TabletShell
+        chrome={tabletChrome(viewport.width, viewport.height)}
+        active={pane}
+        onNavigate={(id) => {
+          setPane(id);
+          document.getElementById(`pane-${id}`)?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+        }}
+      >
+        {page}
+      </TabletShell>
+    );
+  }
+  return page;
 }
