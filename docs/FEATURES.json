@@ -441,7 +441,7 @@
       "id": "F-061",
       "name": "看板 List 与 Item CRUD",
       "phase": "P6",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-060"],
       "apps": ["web", "desktop", "android", "core"],
       "designDoc": "docs/03-features/10-kanban.md",
