@@ -288,7 +288,7 @@
       "id": "F-032",
       "name": "素材检索索引（SQLite FTS / MiniSearch）",
       "phase": "P3",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-031"],
       "apps": ["web", "desktop"],
       "designDoc": "docs/03-features/04-assets.md",
