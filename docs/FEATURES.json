@@ -310,7 +310,7 @@
       "id": "F-034",
       "name": "视觉模型自动打标签",
       "phase": "P3",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-031"],
       "apps": ["web", "desktop", "android", "core"],
       "designDoc": "docs/03-features/19-auto-tag.md",
