@@ -500,7 +500,7 @@
       "id": "F-070",
       "name": "桌面插件宿主与示例插件",
       "phase": "P7",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-012"],
       "apps": ["desktop"],
       "designDoc": "docs/03-features/12-plugins.md",
@@ -510,7 +510,7 @@
         "插件读不到密钥",
         "Pad/Web 无第三方插件时内置类型正常"
       ],
-      "notes": ""
+      "notes": "Desktop PluginHost loads manifest only; writeBlob=commitSnapshot/withRemoteLock. API frozen without secrets. Pad allowThirdParty=false skips third-party. Fixture com.example.pub .vpub."
     },
     {
       "id": "F-071",

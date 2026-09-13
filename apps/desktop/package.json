@@ -7,7 +7,7 @@
     "dev": "tauri dev",
     "build": "tauri build",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "test": "node --experimental-strip-types --test src/host.test.ts && cargo test --manifest-path src-tauri/Cargo.toml",
+    "test": "node --experimental-strip-types --test src/host.test.ts src/plugins.test.ts && cargo test --manifest-path src-tauri/Cargo.toml",
     "tauri": "tauri"
   },
   "dependencies": {
