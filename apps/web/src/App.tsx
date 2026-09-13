@@ -1,11 +1,16 @@
 import { useMemo, useState } from "react";
 import {
   MemoryObjectStore,
+  createFolder,
   createLibrary,
+  folderDepth,
   listLibraries,
+  moveNode,
   protocolRoot,
+  readTree,
   renameLibrary,
   type ObjectStore,
+  type TreeNode,
 } from "@art-stock/core";
 import {
   deviceIdentity,
@@ -41,6 +46,12 @@ export function App() {
   const [keys, setKeys] = useState<string[]>([]);
   const [libraries, setLibraries] = useState<{ id: string; name: string }[]>([]);
   const [newLibraryName, setNewLibraryName] = useState("");
+  const [selectedLibraryId, setSelectedLibraryId] = useState<string | null>(null);
+  const [treeNodes, setTreeNodes] = useState<TreeNode[]>([]);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [folderParentId, setFolderParentId] = useState("");
+  const [movingNodeId, setMovingNodeId] = useState("");
+  const [moveParentId, setMoveParentId] = useState("");
   const device = useMemo(() => deviceIdentity(storage), []);
   const preview = useMemo(
     () => protocolRoot(form.prefix),
@@ -143,6 +154,60 @@ export function App() {
     );
     setStatus(`已重命名为 ${updated.name}`);
     await refreshLibraries();
+  }
+
+  function lockTarget() {
+    return {
+      store: activeStore(form),
+      prefix: formToConfig(form).prefix,
+      deviceId: device.deviceId,
+      deviceName: device.deviceName,
+    };
+  }
+
+  async function refreshTree(libraryId: string) {
+    const current = await readTree(
+      activeStore(form),
+      formToConfig(form).prefix,
+      libraryId,
+    );
+    setTreeNodes(current?.tree.nodes ?? []);
+  }
+
+  async function onCreateFolder() {
+    if (!canWrite || !selectedLibraryId) {
+      setStatus("请先选择资料库");
+      return;
+    }
+    const parent = folderParentId === "" ? null : folderParentId;
+    const created = await createFolder(
+      lockTarget(),
+      selectedLibraryId,
+      parent,
+      newFolderName,
+    );
+    setNewFolderName("");
+    setStatus(`已创建文件夹 ${created.name}`);
+    await refreshTree(selectedLibraryId);
+  }
+
+  async function onMoveFolder() {
+    if (!canWrite || !selectedLibraryId || !movingNodeId) {
+      return;
+    }
+    const parent = moveParentId === "" ? null : moveParentId;
+    try {
+      const moved = await moveNode(
+        lockTarget(),
+        selectedLibraryId,
+        movingNodeId,
+        parent,
+      );
+      setStatus(`已移动 ${moved.name}`);
+      await refreshTree(selectedLibraryId);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "移动失败");
+    }
   }
 
   return (
@@ -282,9 +347,103 @@ export function App() {
               }}
             />
             <code>{lib.id}</code>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedLibraryId(lib.id);
+                void refreshTree(lib.id);
+              }}
+            >
+              打开
+            </button>
           </li>
         ))}
       </ul>
+      {selectedLibraryId ? (
+        <section>
+          <h2>文件夹树</h2>
+          <p>当前库 {selectedLibraryId}</p>
+          <ul>
+            {treeNodes
+              .slice()
+              .sort((a, b) => a.order - b.order)
+              .map((node) => (
+                <li key={node.id} style={{ marginLeft: (folderDepth(treeNodes, node.id) - 1) * 16 }}>
+                  {node.name} <code>{node.id.slice(0, 8)}</code>
+                </li>
+              ))}
+          </ul>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void onCreateFolder();
+            }}
+          >
+            <label>
+              新文件夹
+              <input
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+              />
+            </label>
+            <label>
+              父文件夹
+              <select
+                value={folderParentId}
+                onChange={(e) => setFolderParentId(e.target.value)}
+              >
+                <option value="">（根）</option>
+                {treeNodes.map((node) => (
+                  <option key={node.id} value={node.id}>
+                    {node.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="submit" disabled={!canWrite}>
+              创建文件夹
+            </button>
+          </form>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void onMoveFolder();
+            }}
+          >
+            <label>
+              移动
+              <select
+                value={movingNodeId}
+                onChange={(e) => setMovingNodeId(e.target.value)}
+              >
+                <option value="">选择节点</option>
+                {treeNodes.map((node) => (
+                  <option key={node.id} value={node.id}>
+                    {node.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              到
+              <select
+                value={moveParentId}
+                onChange={(e) => setMoveParentId(e.target.value)}
+              >
+                <option value="">（根）</option>
+                {treeNodes.map((node) => (
+                  <option key={node.id} value={node.id}>
+                    {node.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="submit" disabled={!canWrite}>
+              移动
+            </button>
+          </form>
+        </section>
+      ) : null}
       <style>{`
         label { display: block; margin: 0.4rem 0; }
         input[type="text"], input:not([type]), input[type="password"] { width: 100%; }

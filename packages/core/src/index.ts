@@ -101,3 +101,12 @@ export {
   readManifest,
   renameLibrary,
 } from "./libraries.ts";
+
+export {
+  createFolder,
+  folderDepth,
+  moveNode,
+  readTree,
+  subtreeIds,
+  wouldCreateCycle,
+} from "./tree.ts";

@@ -131,7 +131,7 @@
       "id": "F-011",
       "name": "多层文件夹树",
       "phase": "P1",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-010"],
       "apps": ["web", "desktop", "core"],
       "designDoc": "docs/03-features/02-libraries.md",
@@ -140,7 +140,7 @@
         "拖拽或移动不丢子节点、不产生环",
         "tree.json 持锁提交"
       ],
-      "notes": ""
+      "notes": "createFolder/moveNode; cycle rejected; tree.json If-Match under withRemoteLock."
     },
     {
       "id": "F-012",
