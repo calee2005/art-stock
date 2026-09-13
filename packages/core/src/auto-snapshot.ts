@@ -50,7 +50,7 @@ export function createManualClock(): ClockScheduler & {
         timer.fn();
       }
       await Promise.resolve();
-      await new Promise((resolve) => setImmediate(resolve));
+      await new Promise((resolve) => setTimeout(resolve, 0));
     },
   };
 }
