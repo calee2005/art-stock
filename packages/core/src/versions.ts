@@ -1,3 +1,4 @@
+import { createHlcClock, formatHlcStamp, tickHlc } from "./hlc.ts";
 import { encodeJson, decodeJson } from "./json.ts";
 import { sha256Hex } from "./hash.ts";
 import {
@@ -17,6 +18,7 @@ import { isStoreError } from "./store-error.ts";
 import {
   SCHEMA_VERSION,
   type BranchPointer,
+  type Hlc,
   type ObjectMeta,
   type Snapshot,
 } from "./types.ts";
@@ -27,6 +29,28 @@ const lockOpts = (options?: WithRemoteLockOptions): WithRemoteLockOptions => ({
   scheduleHeartbeat: () => () => {},
   ...options,
 });
+
+export type CommitSnapshotOptions = WithRemoteLockOptions & {
+  /** Local replica's parent. If the remote tip differs, do not fast-forward. */
+  expectedParentSnapshotId?: string;
+  nowMs?: number;
+};
+
+export const CONFLICT_BRANCH_PREFIX = "conflict/";
+
+export function isConflictBranch(name: string): boolean {
+  return name.startsWith(CONFLICT_BRANCH_PREFIX);
+}
+
+export function conflictBranchName(deviceId: string, hlc: Hlc): string {
+  const stamp = formatHlcStamp(hlc);
+  const suffix = `-${stamp}`;
+  const budget = 64 - CONFLICT_BRANCH_PREFIX.length - suffix.length;
+  const safeId = deviceId
+    .replace(/[^A-Za-z0-9._-]/g, "_")
+    .slice(0, Math.max(1, budget));
+  return validateBranchName(`${CONFLICT_BRANCH_PREFIX}${safeId}${suffix}`);
+}
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -91,7 +115,7 @@ export async function commitSnapshot(
   bytes: Uint8Array,
   message = "commit",
   branch?: string,
-  options?: WithRemoteLockOptions,
+  options?: CommitSnapshotOptions,
 ): Promise<Snapshot> {
   const prefix = remote.prefix ?? "";
   return withRemoteLock(
@@ -103,17 +127,34 @@ export async function commitSnapshot(
         throw new Error(`Object not found: ${objectId}`);
       }
       const meta = decodeJson(metaGot.body) as ObjectMeta;
-      const branchName = branch ?? meta.defaultBranch;
-      const current = await getBranch(remote.store, prefix, objectId, branchName);
+      const requestedBranch = branch ?? meta.defaultBranch;
+      const current = await getBranch(
+        remote.store,
+        prefix,
+        objectId,
+        requestedBranch,
+      );
       if (!current) {
-        throw new Error(`Branch not found: ${branchName}`);
+        throw new Error(`Branch not found: ${requestedBranch}`);
       }
+      const expectedParent = options?.expectedParentSnapshotId;
+      const diverged =
+        expectedParent != null && expectedParent !== current.pointer.snapshotId;
+      const parentSnapshotId = diverged
+        ? expectedParent
+        : current.pointer.snapshotId;
+      const hlc = diverged
+        ? tickHlc(createHlcClock(remote.deviceId), options?.nowMs)
+        : null;
+      const branchName = diverged
+        ? conflictBranchName(remote.deviceId, hlc!)
+        : requestedBranch;
       const sha = await sha256Hex(bytes);
       await putBlobIfAbsent(remote, sha, bytes);
       const at = nowIso();
       const snapshot: Snapshot = {
         id: crypto.randomUUID(),
-        parentSnapshotId: current.pointer.snapshotId,
+        parentSnapshotId,
         branch: branchName,
         blobSha256: sha,
         byteSize: bytes.byteLength,
@@ -133,11 +174,19 @@ export async function commitSnapshot(
         updatedAt: at,
         updatedBy: remote.deviceId,
       };
-      await remote.store.put(
-        objectBranchKey(prefix, objectId, branchName),
-        encodeJson(pointer),
-        { contentType: "application/json", ifMatch: current.etag },
-      );
+      if (diverged) {
+        await remote.store.put(
+          objectBranchKey(prefix, objectId, branchName),
+          encodeJson(pointer),
+          { contentType: "application/json", ifNoneMatch: "*", forbidOverwrite: true },
+        );
+      } else {
+        await remote.store.put(
+          objectBranchKey(prefix, objectId, branchName),
+          encodeJson(pointer),
+          { contentType: "application/json", ifMatch: current.etag },
+        );
+      }
       return snapshot;
     },
     lockOpts(options),
@@ -222,6 +271,15 @@ export async function listBranches(
     branches.push(decodeJson(got.body) as BranchPointer);
   }
   return branches.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function listConflictBranches(
+  store: ObjectStore,
+  prefix: string,
+  objectId: string,
+): Promise<BranchPointer[]> {
+  const branches = await listBranches(store, prefix, objectId);
+  return branches.filter((item) => isConflictBranch(item.name));
 }
 
 export async function createBranch(

@@ -344,7 +344,7 @@
       "id": "F-043",
       "name": "同分支分叉生成 conflict 分支",
       "phase": "P4",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-042"],
       "apps": ["core"],
       "designDoc": "docs/02-storage-protocol.md",
@@ -352,7 +352,7 @@
         "单测：两设备同一分支不同 parent → conflict/{deviceId}-{hlc}",
         "远端原分支不被覆盖"
       ],
-      "notes": ""
+      "notes": "commitSnapshot expectedParentSnapshotId: if remote tip differs, PUT snapshot+conflict/{deviceId}-{ts.c} under withRemoteLock and leave original branch pointer unchanged."
     },
     {
       "id": "F-044",

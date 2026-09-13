@@ -6,10 +6,13 @@ import { importObjectNow } from "./import.ts";
 import { MemoryObjectStore } from "./store.ts";
 import {
   commitSnapshot,
+  conflictBranchName,
   createBranch,
   deleteBranch,
   getBranch,
+  isConflictBranch,
   listBranches,
+  listConflictBranches,
   listSnapshots,
   rollbackBranch,
   switchDefaultBranch,
@@ -17,8 +20,8 @@ import {
 } from "./versions.ts";
 import type { ObjectStore } from "./index.ts";
 
-function device(store: ObjectStore) {
-  return { store, deviceId: "dev-a", deviceName: "dev-a", prefix: "" };
+function device(store: ObjectStore, deviceId = "dev-a") {
+  return { store, deviceId, deviceName: deviceId, prefix: "" };
 }
 
 test("two commits create two snapshots and rollback only moves the branch pointer", async () => {
@@ -102,4 +105,58 @@ test("branch names are named pointers not Git refs", () => {
   assert.throws(() => validateBranchName("has space"), /Git ref/);
   assert.throws(() => validateBranchName("../escape"), /Git ref/);
   assert.throws(() => validateBranchName("/leading"), /Git ref/);
+});
+
+test("two devices on the same branch with different parents create a conflict branch", async () => {
+  const store = new MemoryObjectStore();
+  const deviceA = device(store, "dev-a");
+  const deviceB = device(store, "dev-b");
+  const lib = await createLibrary(deviceA, "库");
+  const imported = await importObjectNow(deviceA, {
+    libraryId: lib.id,
+    parentFolderId: null,
+    name: "hero.clip",
+    bytes: new TextEncoder().encode("v0"),
+    type: "artwork",
+  });
+  const objectId = imported.object.id;
+  const base = await getBranch(store, "", objectId, "main");
+  assert.ok(base);
+  const fromA = await commitSnapshot(
+    deviceA,
+    objectId,
+    new TextEncoder().encode("from-a"),
+    "device a",
+  );
+  const mainAfterA = await getBranch(store, "", objectId, "main");
+  assert.equal(mainAfterA?.pointer.snapshotId, fromA.id);
+  const nowMs = 1_780_000_000_000;
+  const fromB = await commitSnapshot(
+    deviceB,
+    objectId,
+    new TextEncoder().encode("from-b"),
+    "device b",
+    "main",
+    { expectedParentSnapshotId: base.pointer.snapshotId, nowMs },
+  );
+  const expectedName = conflictBranchName(deviceB.deviceId, {
+    ts: nowMs,
+    c: 0,
+    deviceId: deviceB.deviceId,
+  });
+  assert.equal(fromB.branch, expectedName);
+  assert.equal(fromB.parentSnapshotId, base.pointer.snapshotId);
+  assert.ok(isConflictBranch(fromB.branch));
+  const remoteMain = await getBranch(store, "", objectId, "main");
+  assert.equal(remoteMain?.pointer.snapshotId, fromA.id);
+  assert.equal(remoteMain?.pointer.updatedBy, "dev-a");
+  const conflicts = await listConflictBranches(store, "", objectId);
+  assert.equal(conflicts.length, 1);
+  assert.equal(conflicts[0]?.name, expectedName);
+  assert.equal(conflicts[0]?.snapshotId, fromB.id);
+  assert.ok(await store.get(objectSnapshotKey("", objectId, fromA.id)));
+  assert.ok(await store.get(objectSnapshotKey("", objectId, fromB.id)));
+  assert.ok(await store.get(blobKey("", fromA.blobSha256)));
+  assert.ok(await store.get(blobKey("", fromB.blobSha256)));
+  assert.notEqual(fromA.blobSha256, fromB.blobSha256);
 });

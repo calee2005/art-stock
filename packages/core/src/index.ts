@@ -144,7 +144,7 @@ export {
   wouldCreateCycle,
 } from "./tree.ts";
 
-export { compareHlc, createHlcClock, tickHlc, type HlcClock } from "./hlc.ts";
+export { compareHlc, createHlcClock, formatHlcStamp, tickHlc, type HlcClock } from "./hlc.ts";
 export {
   addToOrSet,
   emptyOrSet,
@@ -189,15 +189,20 @@ export {
 } from "./sync.ts";
 
 export {
+  CONFLICT_BRANCH_PREFIX,
   commitSnapshot,
+  conflictBranchName,
   createBranch,
   deleteBranch,
   getBranch,
+  isConflictBranch,
   listBranches,
+  listConflictBranches,
   listSnapshots,
   rollbackBranch,
   switchDefaultBranch,
   validateBranchName,
+  type CommitSnapshotOptions,
 } from "./versions.ts";
 
 export {

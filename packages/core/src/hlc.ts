@@ -32,3 +32,7 @@ export function tickHlc(clock: HlcClock, nowMs: number = Date.now()): Hlc {
   clock.last = next;
   return next;
 }
+
+export function formatHlcStamp(hlc: Hlc): string {
+  return `${hlc.ts}.${hlc.c}`;
+}

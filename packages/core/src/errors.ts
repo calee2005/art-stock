@@ -1,7 +1,8 @@
 export type RemoteErrorCode =
   | "REMOTE_LOCK_HELD"
   | "REMOTE_LOCK_LOST"
-  | "REMOTE_UNSUPPORTED";
+  | "REMOTE_UNSUPPORTED"
+  | "CONFLICT_BRANCH";
 
 export class RemoteError extends Error {
   readonly code: RemoteErrorCode;
