@@ -545,7 +545,7 @@
         "未删 board 驱动与 RawDraw",
         "未新建平行 firmware 工程"
       ],
-      "notes": "Cloud agent 环境无墨水屏、无刷机线，无法验证 RawDraw 亮屏。未亮屏前不准删驱动或换框架。改做下一条可做项。"
+      "notes": "无墨水屏、无刷机线，无法验证 RawDraw 亮屏。未亮屏前不准删驱动或换框架。软件功能已完成，剩余仅本项与 F-082 硬件 blocked。"
     },
     {
       "id": "F-081",
@@ -567,7 +567,7 @@
       "id": "F-082",
       "name": "固件 S3 GET 与 art-stock 页面",
       "phase": "P8",
-      "status": "todo",
+      "status": "blocked",
       "dependsOn": ["F-080", "F-081"],
       "apps": ["eink"],
       "designDoc": "docs/03-features/17-eink.md",
@@ -579,7 +579,7 @@
         "断网显示缓存、不崩溃",
         "只加 RawDraw 页面"
       ],
-      "notes": ""
+      "notes": "依赖 F-080 刷机亮屏。无墨水屏硬件，不假装完成、不刷假机。F-081 客户端写 config/summary 已 done。"
     },
     {
       "id": "F-090",
