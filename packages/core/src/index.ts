@@ -94,3 +94,10 @@ export {
   type RemoteLockTarget,
   type WithRemoteLockOptions,
 } from "./lock.ts";
+
+export {
+  createLibrary,
+  listLibraries,
+  readManifest,
+  renameLibrary,
+} from "./libraries.ts";

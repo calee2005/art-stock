@@ -1,10 +1,14 @@
 import { useMemo, useState } from "react";
 import {
   MemoryObjectStore,
+  createLibrary,
+  listLibraries,
   protocolRoot,
+  renameLibrary,
   type ObjectStore,
 } from "@art-stock/core";
 import {
+  deviceIdentity,
   emptyRemoteForm,
   formToConfig,
   getManifest,
@@ -35,6 +39,9 @@ export function App() {
   );
   const [status, setStatus] = useState("未连接。空密钥不会请求任何桶。");
   const [keys, setKeys] = useState<string[]>([]);
+  const [libraries, setLibraries] = useState<{ id: string; name: string }[]>([]);
+  const [newLibraryName, setNewLibraryName] = useState("");
+  const device = useMemo(() => deviceIdentity(storage), []);
   const preview = useMemo(
     () => protocolRoot(form.prefix),
     [form.prefix],
@@ -93,6 +100,49 @@ export function App() {
         : "PUT 完成但未看到锁",
     );
     await listKeys();
+  }
+
+  async function refreshLibraries() {
+    const listed = await listLibraries(activeStore(form), formToConfig(form).prefix);
+    setLibraries(listed.map((item) => ({ id: item.id, name: item.name })));
+  }
+
+  async function onCreateLibrary() {
+    if (!canWrite) {
+      setStatus("只读模式：写入口已禁用");
+      return;
+    }
+    const created = await createLibrary(
+      {
+        store: activeStore(form),
+        prefix: formToConfig(form).prefix,
+        deviceId: device.deviceId,
+        deviceName: device.deviceName,
+      },
+      newLibraryName,
+    );
+    setNewLibraryName("");
+    setStatus(`已创建资料库 ${created.name}`);
+    await refreshLibraries();
+  }
+
+  async function onRenameLibrary(id: string, name: string) {
+    if (!canWrite) {
+      setStatus("只读模式：写入口已禁用");
+      return;
+    }
+    const updated = await renameLibrary(
+      {
+        store: activeStore(form),
+        prefix: formToConfig(form).prefix,
+        deviceId: device.deviceId,
+        deviceName: device.deviceName,
+      },
+      id,
+      name,
+    );
+    setStatus(`已重命名为 ${updated.name}`);
+    await refreshLibraries();
   }
 
   return (
@@ -191,6 +241,48 @@ export function App() {
       <ul>
         {keys.map((key) => (
           <li key={key}>{key}</li>
+        ))}
+      </ul>
+      <h2>资料库</h2>
+      <p>
+        <button type="button" onClick={() => void refreshLibraries()}>
+          刷新列表
+        </button>
+      </p>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void onCreateLibrary();
+        }}
+      >
+        <label>
+          新资料库名称
+          <input
+            value={newLibraryName}
+            onChange={(e) => setNewLibraryName(e.target.value)}
+            placeholder="例如 角色设定"
+          />
+        </label>
+        <button type="submit" disabled={!canWrite}>
+          创建
+        </button>
+      </form>
+      <ul>
+        {libraries.map((lib) => (
+          <li key={lib.id}>
+            <input
+              aria-label={`rename-${lib.id}`}
+              defaultValue={lib.name}
+              disabled={!canWrite}
+              onBlur={(e) => {
+                const next = e.target.value.trim();
+                if (next && next !== lib.name) {
+                  void onRenameLibrary(lib.id, next);
+                }
+              }}
+            />
+            <code>{lib.id}</code>
+          </li>
         ))}
       </ul>
       <style>{`

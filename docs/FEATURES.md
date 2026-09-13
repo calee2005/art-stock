@@ -4,7 +4,7 @@ Agent 以 [FEATURES.json](FEATURES.json) 为任务源，本文件为可读勾选
 
 领取规则见 [AGENTS.md](../AGENTS.md)。阶段说明见 [04-roadmap.md](04-roadmap.md)。
 
-当前进度：P0 **F-000**–**F-005** 已完成。完成一项后请同步改 JSON 的 `status`，并把下面相应行改为 `[x]`。
+当前进度：P0 已完成；P1 **F-010** 已完成。完成一项后请同步改 JSON 的 `status`，并把下面相应行改为 `[x]`。
 
 ## P0 骨架
 
@@ -17,7 +17,7 @@ Agent 以 [FEATURES.json](FEATURES.json) 为任务源，本文件为可读勾选
 
 ## P1 资料库 MVP
 
-- [ ] **F-010** 资料库 CRUD 与 manifest — [02-libraries](03-features/02-libraries.md)（F-004）
+- [x] **F-010** 资料库 CRUD 与 manifest — [02-libraries](03-features/02-libraries.md)（F-004）
 - [ ] **F-011** 多层文件夹树（F-010）
 - [ ] **F-012** 文件导入与 object meta（F-011）
 - [ ] **F-013** 标签 OR-Set（F-012）

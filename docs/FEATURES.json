@@ -116,7 +116,7 @@
       "id": "F-010",
       "name": "资料库 CRUD 与 manifest",
       "phase": "P1",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-004"],
       "apps": ["web", "desktop", "core"],
       "designDoc": "docs/03-features/02-libraries.md",
@@ -125,7 +125,7 @@
         "写入走锁并更新 manifest.json",
         "另一客户端拉到同一列表"
       ],
-      "notes": ""
+      "notes": "create/rename/list via withRemoteLock; two clients share mock S3."
     },
     {
       "id": "F-011",
