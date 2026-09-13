@@ -597,7 +597,7 @@
       "id": "F-091",
       "name": "GitHub Pages 发布与 CORS 文档验证",
       "phase": "P9",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-004"],
       "apps": ["web"],
       "designDoc": "docs/03-features/14-web.md",
