@@ -26,6 +26,8 @@ export type {
   ObjectType,
   OplogEntry,
   OplogOp,
+  OrSet,
+  OrSetDot,
   RemoteConfig,
   RemoteMode,
   ReplicaStatus,
@@ -111,6 +113,25 @@ export {
   wouldCreateCycle,
 } from "./tree.ts";
 
+export { compareHlc, createHlcClock, tickHlc, type HlcClock } from "./hlc.ts";
+export {
+  addToOrSet,
+  emptyOrSet,
+  mergeOrSets,
+  orSetFromTags,
+  removeFromOrSet,
+  valuesOfOrSet,
+} from "./orset.ts";
+export {
+  addNodeTag,
+  applyTagSet,
+  mergeEntityTags,
+  nodesMatchingTags,
+  nodesWithTag,
+  removeNodeTag,
+  tagSetOf,
+  type TagWriteOptions,
+} from "./tags.ts";
 export { sha256Hex } from "./hash.ts";
 export {
   enqueueImport,

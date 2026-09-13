@@ -15,6 +15,16 @@ export type Hlc = {
   deviceId: DeviceId;
 };
 
+export type OrSetDot = {
+  value: string;
+  hlc: Hlc;
+};
+
+export type OrSet = {
+  adds: OrSetDot[];
+  removes: OrSetDot[];
+};
+
 export type ManifestLibraryRef = {
   id: Uuid;
   name: string;
@@ -49,6 +59,7 @@ export type ObjectMeta = {
   name: string;
   type: ObjectType;
   tags: string[];
+  tagSet?: OrSet;
   createdAt: Iso8601;
   updatedAt: Iso8601;
   defaultBranch: string;
@@ -127,6 +138,7 @@ export type TreeNode = {
   name: string;
   objectId?: Uuid;
   tags: string[];
+  tagSet?: OrSet;
   updatedAt: Iso8601;
   order: number;
 };

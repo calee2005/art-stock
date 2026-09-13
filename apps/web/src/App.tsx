@@ -13,6 +13,9 @@ import {
   flushImportQueue,
   importObjectNow,
   inferObjectType,
+  addNodeTag,
+  removeNodeTag,
+  nodesMatchingTags,
   type ImportQueue,
   type ObjectStore,
   type TreeNode,
@@ -58,6 +61,9 @@ export function App() {
   const [movingNodeId, setMovingNodeId] = useState("");
   const [moveParentId, setMoveParentId] = useState("");
   const [importQueue, setImportQueue] = useState<ImportQueue>([]);
+  const [selectedNodeId, setSelectedNodeId] = useState("");
+  const [tagDraft, setTagDraft] = useState("");
+  const [tagFilter, setTagFilter] = useState("");
   const device = useMemo(() => deviceIdentity(storage), []);
   const preview = useMemo(
     () => protocolRoot(form.prefix),
@@ -268,6 +274,38 @@ export function App() {
     }
   }
 
+  async function onAddTag() {
+    if (!canWrite || !selectedLibraryId || !selectedNodeId) {
+      setStatus("请先选择节点");
+      return;
+    }
+    const tag = tagDraft.trim();
+    if (!tag) {
+      return;
+    }
+    try {
+      await addNodeTag(lockTarget(), selectedLibraryId, selectedNodeId, tag);
+      setTagDraft("");
+      setStatus(`已打标签 ${tag}`);
+      await refreshTree(selectedLibraryId);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "打标签失败");
+    }
+  }
+
+  async function onRemoveTag(tag: string) {
+    if (!canWrite || !selectedLibraryId || !selectedNodeId) {
+      return;
+    }
+    try {
+      await removeNodeTag(lockTarget(), selectedLibraryId, selectedNodeId, tag);
+      setStatus(`已移除标签 ${tag}`);
+      await refreshTree(selectedLibraryId);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "移除标签失败");
+    }
+  }
+
   return (
     <div style={{ fontFamily: "system-ui, sans-serif", maxWidth: 720, margin: "2rem auto", padding: "0 1rem" }}>
       <h1>Art Stock Web</h1>
@@ -422,16 +460,71 @@ export function App() {
           <h2>文件夹树</h2>
           <p>当前库 {selectedLibraryId}</p>
           <ul>
-            {treeNodes
+            {nodesMatchingTags(
+              treeNodes,
+              tagFilter
+                .split(/[,，\s]+/)
+                .map((item) => item.trim())
+                .filter(Boolean),
+            )
               .slice()
               .sort((a, b) => a.order - b.order)
               .map((node) => (
                 <li key={node.id} style={{ marginLeft: (folderDepth(treeNodes, node.id) - 1) * 16 }}>
-                  {node.kind === "file" ? "文件" : "文件夹"} {node.name}{" "}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedNodeId(node.id)}
+                    style={{
+                      fontWeight: selectedNodeId === node.id ? 700 : 400,
+                    }}
+                  >
+                    {node.kind === "file" ? "文件" : "文件夹"} {node.name}
+                  </button>{" "}
                   <code>{node.id.slice(0, 8)}</code>
+                  {node.tags.length > 0 ? ` [${node.tags.join(", ")}]` : ""}
                 </li>
               ))}
           </ul>
+          <p>
+            <label>
+              按标签筛选
+              <input
+                value={tagFilter}
+                onChange={(e) => setTagFilter(e.target.value)}
+                placeholder="多个标签为空格分隔，需同时具备"
+              />
+            </label>
+          </p>
+          <p>
+            <label>
+              给选中节点打标签
+              <input
+                value={tagDraft}
+                onChange={(e) => setTagDraft(e.target.value)}
+                placeholder="例如 角色"
+              />
+            </label>
+            <button type="button" onClick={() => void onAddTag()} disabled={!canWrite}>
+              打标签
+            </button>
+          </p>
+          {selectedNodeId ? (
+            <p>
+              当前标签{" "}
+              {treeNodes
+                .find((node) => node.id === selectedNodeId)
+                ?.tags.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => void onRemoveTag(tag)}
+                    disabled={!canWrite}
+                  >
+                    {tag} ×
+                  </button>
+                ))}
+            </p>
+          ) : null}
           <form
             onSubmit={(event) => {
               event.preventDefault();
