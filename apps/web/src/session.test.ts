@@ -15,6 +15,7 @@ import {
   loadRemoteForm,
   probeReadwrite,
   putWithGlobalLock,
+  savePublicRemoteForm,
   saveRemoteForm,
   type StorageLike,
 } from "./session.ts";
@@ -131,4 +132,23 @@ test("list/get and PUT observe lock.json while holding the lock", async () => {
   assert.equal(await store.get(lockKey("art/")), null);
   const hello = await store.get(result.putKey);
   assert.equal(new TextDecoder().decode(hello?.body ?? new Uint8Array()), "hi");
+  assert.doesNotMatch(JSON.stringify(result), /super-secret/);
+});
+
+test("public remote persist omits secrets", () => {
+  const storage = memoryStorage();
+  savePublicRemoteForm(storage, {
+    ...emptyRemoteForm(),
+    endpoint: "http://127.0.0.1:19001",
+    bucket: "art",
+    accessKeyId: "AKIATEST",
+    secretAccessKey: "super-secret-oss",
+    forcePathStyle: true,
+  });
+  const raw = storage.getItem("art-stock.remote-config") ?? "";
+  assert.equal(raw.includes("super-secret-oss"), false);
+  assert.equal(raw.includes("AKIATEST"), false);
+  const loaded = loadRemoteForm(storage);
+  assert.equal(loaded?.endpoint, "http://127.0.0.1:19001");
+  assert.equal(loaded?.secretAccessKey, "");
 });

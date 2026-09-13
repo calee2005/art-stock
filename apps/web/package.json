@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "test": "node --experimental-strip-types --test src/session.test.ts src/cors.test.ts"
+    "test": "node --experimental-strip-types --test src/session.test.ts src/cors.test.ts src/pad-host.test.ts"
   },
   "dependencies": {
     "@art-stock/core": "workspace:*",

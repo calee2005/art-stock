@@ -21,7 +21,10 @@ export function tabletChrome(width: number, height: number): TabletChrome {
   return width >= height ? "sidebar" : "bottom";
 }
 
-export function pickAppShell(width: number): AppShellKind {
+export function pickAppShell(width: number, forceTablet = false): AppShellKind {
+  if (forceTablet) {
+    return "tablet";
+  }
   return width <= TABLET_SHELL_MAX_PX ? "tablet" : "desktop";
 }
 

@@ -83,8 +83,25 @@ export function hasCredentials(form: Pick<RemoteForm, "accessKeyId" | "secretAcc
   );
 }
 
+/** Public remote fields only. Secrets must not be written on Tauri/Pad hosts. */
+export function stripSecretsFromForm(form: RemoteForm): RemoteForm {
+  return { ...form, accessKeyId: "", secretAccessKey: "" };
+}
+
+export function publicRemoteJson(form: RemoteForm): string {
+  return JSON.stringify(stripSecretsFromForm(form));
+}
+
 export function saveRemoteForm(storage: StorageLike, form: RemoteForm): void {
   storage.setItem(REMOTE_STORAGE_KEY, JSON.stringify(form));
+}
+
+export function savePublicRemoteForm(storage: StorageLike, form: RemoteForm): void {
+  const json = publicRemoteJson(form);
+  if (form.secretAccessKey && json.includes(form.secretAccessKey)) {
+    throw new Error("Refusing to persist secretAccessKey in localStorage");
+  }
+  storage.setItem(REMOTE_STORAGE_KEY, json);
 }
 
 export function loadRemoteForm(storage: StorageLike): RemoteForm | null {
@@ -100,7 +117,10 @@ export function loadRemoteForm(storage: StorageLike): RemoteForm | null {
   }
 }
 
-export function deviceIdentity(storage: StorageLike): { deviceId: string; deviceName: string } {
+export function deviceIdentity(
+  storage: StorageLike,
+  defaultName = "web",
+): { deviceId: string; deviceName: string } {
   const raw = storage.getItem(DEVICE_STORAGE_KEY);
   if (raw) {
     try {
@@ -108,7 +128,7 @@ export function deviceIdentity(storage: StorageLike): { deviceId: string; device
       if (parsed.deviceId) {
         return {
           deviceId: parsed.deviceId,
-          deviceName: parsed.deviceName ?? "web",
+          deviceName: parsed.deviceName ?? defaultName,
         };
       }
     } catch {
@@ -116,7 +136,7 @@ export function deviceIdentity(storage: StorageLike): { deviceId: string; device
     }
   }
   const deviceId = crypto.randomUUID();
-  const identity = { deviceId, deviceName: "web" };
+  const identity = { deviceId, deviceName: defaultName };
   storage.setItem(DEVICE_STORAGE_KEY, JSON.stringify(identity));
   return identity;
 }

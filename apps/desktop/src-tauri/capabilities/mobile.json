@@ -3,5 +3,5 @@
   "description": "Android Pad host permissions. Separate from desktop.",
   "windows": ["main"],
   "platforms": ["android"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "allow-host-commands"]
 }

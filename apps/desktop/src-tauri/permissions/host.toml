@@ -1,0 +1,17 @@
+[[permission]]
+identifier = "allow-host-commands"
+description = "Keystore, sandbox, thumbs, watch, and pad e2e public status. Secrets never go in e2e files."
+commands.allow = [
+  "secure_store_set",
+  "secure_store_get",
+  "cache_dir",
+  "sandbox_layout",
+  "metadata_put",
+  "metadata_get",
+  "reclaim_cache",
+  "thumb_generate",
+  "watch_start",
+  "watch_stop",
+  "pad_e2e_config",
+  "pad_e2e_report"
+]

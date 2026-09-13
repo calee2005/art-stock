@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
-  MemoryObjectStore,
   createFolder,
   createLibrary,
   folderDepth,
@@ -101,7 +100,6 @@ import {
   serializePins,
   type ImportQueue,
   type SyncState,
-  type ObjectStore,
   type TreeNode,
   type KanbanIndexWorkspace,
   type KanbanList,
@@ -125,12 +123,23 @@ import {
   getManifest,
   hasCredentials,
   listProtocolKeys,
-  loadRemoteForm,
   probeReadwrite,
   putWithGlobalLock,
-  saveRemoteForm,
   type RemoteForm,
 } from "./session.ts";
+import {
+  activeStore,
+  applyPadE2eConfig,
+  isAndroidPad,
+  loadPadE2eConfig,
+  localStorageHasSecret,
+  persistRemoteForm,
+  redactSecrets,
+  reportPadE2e,
+  restoreRemoteForm,
+  runPadBrowseAndUpload,
+  waitForTauriInvoke,
+} from "./pad-host.ts";
 import {
   CORS_ERROR_MESSAGE,
   checkBucketCors,
@@ -140,13 +149,7 @@ import {
 } from "./cors.ts";
 
 const storage: Storage = window.localStorage;
-const demoStore = new MemoryObjectStore();
-
-function activeStore(_form: RemoteForm): ObjectStore {
-  // Real HTTP S3 client is still stubbed (F-002). Web uses an in-memory
-  // store so list/get/locked PUT can be exercised without a backend.
-  return demoStore;
-}
+const padHost = isAndroidPad();
 
 function MindTree(props: {
   node: MindNode;
@@ -193,9 +196,7 @@ function MindTree(props: {
 }
 
 export function App() {
-  const [form, setForm] = useState<RemoteForm>(
-    () => loadRemoteForm(storage) ?? emptyRemoteForm(),
-  );
+  const [form, setForm] = useState<RemoteForm>(() => emptyRemoteForm());
   const [xssDismissed, setXssDismissed] = useState(
     () => sessionStorage.getItem("art-stock.xss-ok") === "1",
   );
@@ -276,7 +277,10 @@ export function App() {
     }
   });
   const [originalCache] = useState(() => new Map<string, Uint8Array>());
-  const device = useMemo(() => deviceIdentity(storage), []);
+  const device = useMemo(
+    () => deviceIdentity(storage, padHost ? "pad" : "web"),
+    [],
+  );
   const preview = useMemo(
     () => protocolRoot(form.prefix),
     [form.prefix],
@@ -310,13 +314,88 @@ export function App() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const invoke = padHost ? await waitForTauriInvoke() : null;
+      const restored = await restoreRemoteForm(storage, invoke);
+      if (cancelled) {
+        return;
+      }
+      setForm(restored);
+      if (!padHost) {
+        return;
+      }
+      try {
+        const e2e = await loadPadE2eConfig(invoke);
+        if (!e2e || cancelled) {
+          return;
+        }
+        const next = applyPadE2eConfig(restored, e2e);
+        setForm(next);
+        await persistRemoteForm(storage, next, invoke);
+        const result = await runPadBrowseAndUpload({
+          store: activeStore(next),
+          form: next,
+          deviceId: device.deviceId,
+          deviceName: "pad",
+          libraryName: e2e.libraryName ?? "Pad库",
+          uploadBody: "from pad",
+          uploadName: e2e.uploadName,
+        });
+        if (cancelled) {
+          return;
+        }
+        setLibraries(result.libraryNames.map((name, index) => ({ id: `lib-${index}`, name })));
+        await refreshLibrariesFrom(next);
+        const chrome = tabletChrome(window.innerWidth, window.innerHeight);
+        const statusText = result.lockSeenDuringPut
+          ? `Pad 已持锁上传（token ${result.fencingToken}）`
+          : "Pad 上传完成但未看到锁";
+        setStatus(statusText);
+        await reportPadE2e(
+          {
+            ok: true,
+            libraries: result.libraryNames,
+            lockSeenDuringPut: result.lockSeenDuringPut,
+            fencingToken: result.fencingToken,
+            putKey: result.putKey,
+            chrome,
+            width: window.innerWidth,
+            height: window.innerHeight,
+            secretsInLocalStorage: localStorageHasSecret(storage, next.secretAccessKey),
+            tabletShell: true,
+          },
+          invoke,
+        );
+      } catch (error) {
+        const message = redactSecrets(
+          error instanceof Error ? error.message : String(error),
+          [restored.secretAccessKey, restored.accessKeyId],
+        );
+        setStatus(message);
+        await reportPadE2e(
+          { ok: false, error: message, tabletShell: true },
+          invoke,
+        ).catch(() => undefined);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [device.deviceId]);
+
   function update<K extends keyof RemoteForm>(key: K, value: RemoteForm[K]) {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
-  function save() {
-    saveRemoteForm(storage, form);
-    setStatus("已保存到本机。清除站点数据会丢失密钥。");
+  async function save() {
+    await persistRemoteForm(storage, form);
+    setStatus(
+      padHost
+        ? "已保存。密钥写入 Android Keystore，不进 localStorage / Git。"
+        : "已保存到本机。清除站点数据会丢失密钥。",
+    );
   }
 
   async function withCorsGuard(action: () => Promise<void>): Promise<void> {
@@ -421,7 +500,11 @@ export function App() {
   }
 
   async function refreshLibraries() {
-    const listed = await listLibraries(activeStore(form), formToConfig(form).prefix);
+    await refreshLibrariesFrom(form);
+  }
+
+  async function refreshLibrariesFrom(current: RemoteForm) {
+    const listed = await listLibraries(activeStore(current), formToConfig(current).prefix);
     setLibraries(listed.map((item) => ({ id: item.id, name: item.name })));
   }
 
@@ -1109,7 +1192,10 @@ export function App() {
   }
 
   const page = (
-    <div style={{ fontFamily: "system-ui, sans-serif", maxWidth: 720, margin: "2rem auto", padding: "0 1rem" }}>
+    <div
+      data-testid={padHost ? "pad-root" : "app-root"}
+      style={{ fontFamily: "system-ui, sans-serif", maxWidth: 720, margin: "2rem auto", padding: "0 1rem" }}
+    >
       <h1 id="pane-remote">Art Stock Web</h1>
       <p role="status" style={{ background: "#eef2ff", padding: "0.5rem 0.75rem" }}>
         状态栏：待提交 {pendingCount(sync)}
@@ -1161,7 +1247,11 @@ export function App() {
         </label>
         <label>
           endpoint
-          <input value={form.endpoint} onChange={(e) => update("endpoint", e.target.value)} />
+          <input
+            data-testid="pad-endpoint"
+            value={form.endpoint}
+            onChange={(e) => update("endpoint", e.target.value)}
+          />
         </label>
         <label>
           bucket
@@ -1200,7 +1290,9 @@ export function App() {
           />
           只读
         </label>
-        <button type="submit">保存</button>
+        <button type="submit" data-testid="pad-save-oss">
+          保存
+        </button>
       </form>
       <p>
         <a href="https://github.com/calee2005/art-stock/blob/master/docs/02-storage-protocol.md">
@@ -1244,7 +1336,7 @@ export function App() {
           受控 PUT
         </button>
       </p>
-      <p>
+      <p data-testid="pad-status">
         {status}{" "}
         <span data-testid="conflict-badge">
           冲突 {conflictBadgeCount(conflictCount, 0)}
@@ -1270,16 +1362,17 @@ export function App() {
         <label>
           新资料库名称
           <input
+            data-testid="pad-library-name"
             value={newLibraryName}
             onChange={(e) => setNewLibraryName(e.target.value)}
             placeholder="例如 角色设定"
           />
         </label>
-        <button type="submit" disabled={!canWrite}>
+        <button type="submit" data-testid="pad-create-library" disabled={!canWrite}>
           创建
         </button>
       </form>
-      <ul>
+      <ul data-testid="pad-libraries">
         {libraries.map((lib) => (
           <li key={lib.id}>
             <input
@@ -2083,6 +2176,7 @@ export function App() {
           <p>
             导入文件
             <input
+              data-testid="pad-upload"
               type="file"
               disabled={!selectedLibraryId}
               onChange={(e) => {
@@ -2611,7 +2705,7 @@ export function App() {
     </div>
   );
 
-  if (pickAppShell(viewport.width) === "tablet") {
+  if (pickAppShell(viewport.width, padHost) === "tablet") {
     return (
       <TabletShell
         chrome={tabletChrome(viewport.width, viewport.height)}

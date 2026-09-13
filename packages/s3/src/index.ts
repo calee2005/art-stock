@@ -1,4 +1,5 @@
-export { S3ObjectStore } from "./client.ts";
+export { S3ObjectStore, parseListXml } from "./client.ts";
+export { signAwsV4, sha256Hex, type SignRequestInput } from "./sign.ts";
 export {
   addressingStyle,
   objectUrl,

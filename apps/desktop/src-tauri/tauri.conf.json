@@ -4,9 +4,11 @@
   "version": "0.0.1",
   "identifier": "app.artstock.desktop",
   "build": {
-    "frontendDist": "../webview"
+    "beforeBuildCommand": "pnpm --dir ../.. --filter @art-stock/web build",
+    "frontendDist": "../../web/dist"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "label": "main",
@@ -16,7 +18,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'"
+      "csp": "default-src 'self' ipc: http://ipc.localhost https://ipc.localhost; connect-src 'self' ipc: http://ipc.localhost https://ipc.localhost http: https:; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'"
     }
   },
   "bundle": {
