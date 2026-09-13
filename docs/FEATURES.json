@@ -19,7 +19,7 @@
       "id": "F-000",
       "name": "Monorepo 骨架（pnpm/Turbo/Cargo，空包边界）",
       "phase": "P0",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": [],
       "apps": ["web", "desktop"],
       "designDoc": "docs/03-features/18-monorepo.md",
