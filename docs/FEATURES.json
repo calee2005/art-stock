@@ -247,7 +247,7 @@
       "id": "F-023",
       "name": "Pad 真机通路：OSS 浏览与上传",
       "phase": "P2",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-020", "F-022", "F-010"],
       "apps": ["android"],
       "designDoc": "docs/03-features/16-android-pad.md",
