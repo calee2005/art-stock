@@ -332,7 +332,7 @@
       "id": "F-042",
       "name": "命名分支 CRUD 与切换",
       "phase": "P4",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-040"],
       "apps": ["web", "desktop", "core"],
       "designDoc": "docs/03-features/03-artwork-versions.md",
