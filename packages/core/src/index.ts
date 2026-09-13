@@ -91,6 +91,7 @@ export {
   LOCK_TTL_MS,
   PROBE_RELATIVE_KEY,
   probeConditionalWrites,
+  readRemoteLock,
   withRemoteLock,
   type LockFnContext,
   type RemoteLockTarget,
@@ -143,3 +144,16 @@ export {
   type ImportQueue,
   type QueuedImport,
 } from "./import.ts";
+
+export {
+  cacheObjectMeta,
+  cacheThumb,
+  createSyncState,
+  enqueueSyncImport,
+  pendingCount,
+  pushSync,
+  setSyncPaused,
+  type PushSyncResult,
+  type SyncJob,
+  type SyncState,
+} from "./sync.ts";

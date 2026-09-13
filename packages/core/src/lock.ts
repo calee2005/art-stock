@@ -73,6 +73,17 @@ function buildLockDocument(input: {
   };
 }
 
+export async function readRemoteLock(
+  store: ObjectStore,
+  prefix: string = "",
+): Promise<LockDocument | null> {
+  const got = await store.get(lockKey(prefix));
+  if (!got) {
+    return null;
+  }
+  return parseLockDocument(got.body);
+}
+
 function parseLockDocument(body: Uint8Array): LockDocument | null {
   try {
     const parsed = decodeJson(body) as Partial<LockDocument>;

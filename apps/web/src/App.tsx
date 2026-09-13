@@ -16,7 +16,13 @@ import {
   addNodeTag,
   removeNodeTag,
   nodesMatchingTags,
+  createSyncState,
+  enqueueSyncImport,
+  pendingCount,
+  pushSync,
+  setSyncPaused,
   type ImportQueue,
+  type SyncState,
   type ObjectStore,
   type TreeNode,
 } from "@art-stock/core";
@@ -61,6 +67,7 @@ export function App() {
   const [movingNodeId, setMovingNodeId] = useState("");
   const [moveParentId, setMoveParentId] = useState("");
   const [importQueue, setImportQueue] = useState<ImportQueue>([]);
+  const [sync, setSync] = useState<SyncState>(() => createSyncState());
   const [selectedNodeId, setSelectedNodeId] = useState("");
   const [tagDraft, setTagDraft] = useState("");
   const [tagFilter, setTagFilter] = useState("");
@@ -237,13 +244,18 @@ export function App() {
       type: inferObjectType(file.name, file.type),
       mimeType: file.type || "application/octet-stream",
     };
-    if (!canWrite) {
+    if (!canWrite || sync.paused) {
       setImportQueue((current) => {
         const next = [...current];
         enqueueImport(next, job);
         return next;
       });
-      setStatus(`已入队离线导入 ${file.name}（${importQueue.length + 1}）`);
+      setSync((current) => {
+        const next = { ...current, queue: [...current.queue] };
+        enqueueSyncImport(next, job);
+        return next;
+      });
+      setStatus(`已入队离线导入 ${file.name}（待提交 ${pendingCount(sync) + 1}）`);
       return;
     }
     try {
@@ -271,6 +283,31 @@ export function App() {
     } catch (error) {
       setImportQueue((current) => [...pending, ...current]);
       setStatus(error instanceof Error ? error.message : "提交队列失败");
+    }
+  }
+
+  async function onPushSync() {
+    if (!canWrite) {
+      setStatus("只读模式：写入口已禁用");
+      return;
+    }
+    const snapshot = sync;
+    const result = await pushSync(lockTarget(), snapshot);
+    setSync({ ...snapshot, queue: [...snapshot.queue] });
+    if (result.status === "paused") {
+      setStatus(`同步已暂停，待提交 ${result.pending}`);
+      return;
+    }
+    if (result.status === "lock-held") {
+      const seconds = Math.ceil(result.ttlMs / 1000);
+      setStatus(
+        `锁占用：${result.deviceName}，剩余约 ${seconds}s，待提交 ${result.pending}，未盲写`,
+      );
+      return;
+    }
+    setStatus(`已同步 ${result.flushed} 项，待提交 ${result.pending}`);
+    if (selectedLibraryId) {
+      await refreshTree(selectedLibraryId);
     }
   }
 
@@ -309,6 +346,27 @@ export function App() {
   return (
     <div style={{ fontFamily: "system-ui, sans-serif", maxWidth: 720, margin: "2rem auto", padding: "0 1rem" }}>
       <h1>Art Stock Web</h1>
+      <p role="status" style={{ background: "#eef2ff", padding: "0.5rem 0.75rem" }}>
+        状态栏：待提交 {pendingCount(sync)}
+        {sync.paused ? " · 已暂停" : " · 同步开启"}
+      </p>
+      <p>
+        <label>
+          <input
+            type="checkbox"
+            checked={sync.paused}
+            onChange={(e) => {
+              const paused = e.target.checked;
+              setSyncPaused(sync, paused);
+              setSync({ ...sync, paused, queue: [...sync.queue] });
+            }}
+          />
+          暂停同步
+        </label>
+        <button type="button" onClick={() => void onPushSync()} disabled={!canWrite}>
+          提交同步队列
+        </button>
+      </p>
       {!xssDismissed ? (
         <p role="alert" style={{ background: "#fff3cd", padding: "0.75rem" }}>
           密钥保存在浏览器本地。XSS 或不可信扩展可窃取密钥。优先使用短期密钥。
