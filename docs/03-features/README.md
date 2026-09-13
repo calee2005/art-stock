@@ -8,6 +8,7 @@
 | [02-libraries.md](02-libraries.md) | 资料库与文件夹 |
 | [03-artwork-versions.md](03-artwork-versions.md) | 快照与分支 |
 | [04-assets.md](04-assets.md) | 全局素材库 |
+| [19-auto-tag.md](19-auto-tag.md) | 视觉模型自动打标签 |
 | [05-sync.md](05-sync.md) | 钉选与同步 |
 | [06-markdown.md](06-markdown.md) | Markdown |
 | [07-pdf.md](07-pdf.md) | PDF 查看 |

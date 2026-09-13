@@ -307,6 +307,24 @@
       "notes": "ACTION_SEND image/* → filesDir/inbox; Pad UI archives via importAsset/withRemoteLock. Pixel Tablet e2e: from-gallery.png importedTo assets. Secrets omitted from e2e JSON."
     },
     {
+      "id": "F-034",
+      "name": "视觉模型自动打标签",
+      "phase": "P3",
+      "status": "done",
+      "dependsOn": ["F-031"],
+      "apps": ["web", "desktop", "android", "core"],
+      "designDoc": "docs/03-features/19-auto-tag.md",
+      "acceptance": [
+        "未配 Key 时导入不发起网络请求到 LLM",
+        "配好后导入（onImport 开）写出至少一个维度标签，扁平 tags 含 视角/ 前缀，可按标签筛选",
+        "手打标签在重跑 AI 后保留，旧视觉标签被替换",
+        "恢复预置后提示词与 19-auto-tag.md 预置一致",
+        "Pad wifiOnly 时蜂窝不送图",
+        "写回素材 meta 与 settings/vision-tag.json 走 withRemoteLock，不含 API Key"
+      ],
+      "notes": "VisionTagSettings at settings/vision-tag.json via withRemoteLock (no apiKey). tagAssetWithVision mock S3: no-key import skips LLM, wifiOnly cellular blocked, hand tags kept. Preset prompt in packages/core/prompts/asset-auto-tag.zh.md. Web settings + MCP auto_tag_assets."
+    },
+    {
       "id": "F-040",
       "name": "手动 snapshot 与历史回滚",
       "phase": "P4",

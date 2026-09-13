@@ -112,6 +112,25 @@ import {
   type AssetFolder,
   type Pin,
   type SnapshotPolicy,
+  DEFAULT_VISION_TAG_PROMPT,
+  allowVisionUpload,
+  createVisionTagQueue,
+  defaultVisionProvider,
+  defaultVisionTagSettings,
+  drainVisionTagQueue,
+  enqueueVisionTagJob,
+  hashVisionPrompt,
+  needsUntaggedScan,
+  promptHashShort,
+  readVisionTagSettings,
+  restorePresetPrompt,
+  shouldEnqueueOnImport,
+  tagAssetWithVision,
+  visionTagProgress,
+  writeVisionTagSettings,
+  type VisionProviderConfig,
+  type VisionTagQueue,
+  type VisionTagSettings,
 } from "@art-stock/core";
 import {
   TabletShell,
@@ -163,6 +182,14 @@ import {
   describeCorsFailure,
   isCorsFailure,
 } from "./cors.ts";
+import {
+  acceptVisionPrivacy,
+  last4Secret,
+  persistVisionProvider,
+  privacyAccepted,
+  resolveVisionClient,
+  restoreVisionProvider,
+} from "./vision-local.ts";
 
 const storage: Storage = window.localStorage;
 const padHost = isAndroidPad();
@@ -305,6 +332,14 @@ export function App() {
     }
   });
   const [originalCache] = useState(() => new Map<string, Uint8Array>());
+  const [visionProvider, setVisionProvider] = useState<VisionProviderConfig>(() =>
+    defaultVisionProvider({ apiKey: "" }),
+  );
+  const [visionSettings, setVisionSettings] = useState<VisionTagSettings>(() =>
+    defaultVisionTagSettings({ wifiOnly: padHost }),
+  );
+  const [visionQueue, setVisionQueue] = useState<VisionTagQueue>(() => createVisionTagQueue());
+  const [visionPrivacyOk, setVisionPrivacyOk] = useState(() => privacyAccepted(storage));
   const device = useMemo(
     () => deviceIdentity(storage, padHost ? "pad" : "web"),
     [],
@@ -351,6 +386,10 @@ export function App() {
         return;
       }
       setForm(restored);
+      const vision = await restoreVisionProvider(storage, invoke);
+      if (!cancelled) {
+        setVisionProvider(vision);
+      }
       if (!padHost) {
         return;
       }
@@ -608,7 +647,7 @@ export function App() {
       } catch (error) {
         const message = redactSecrets(
           error instanceof Error ? error.message : String(error),
-          [restored.secretAccessKey, restored.accessKeyId],
+          [restored.secretAccessKey, restored.accessKeyId, vision.apiKey],
         );
         setStatus(message);
         await reportPadE2e(
@@ -765,6 +804,7 @@ export function App() {
   async function refreshLibrariesFrom(current: RemoteForm) {
     const listed = await listLibraries(activeStore(current), formToConfig(current).prefix);
     setLibraries(listed.map((item) => ({ id: item.id, name: item.name })));
+    await refreshVisionSettingsFrom(current);
   }
 
   async function onCreateLibrary() {
@@ -817,6 +857,125 @@ export function App() {
       deviceId: device.deviceId,
       deviceName: device.deviceName,
     };
+  }
+
+  function ensureVisionReady(): boolean {
+    if (!visionProvider.apiKey) {
+      setStatus("未配置视觉模型 API Key，请到设置填写。导入不会请求 LLM。");
+      return false;
+    }
+    if (!visionSettings.enabled) {
+      setStatus("视觉打标签未启用，请先在设置中打开。");
+      return false;
+    }
+    if (!visionPrivacyOk) {
+      const ok = window.confirm("缩略图/降采样图将发送到所填 endpoint。是否继续？");
+      if (!ok) {
+        return false;
+      }
+      acceptVisionPrivacy(storage);
+      setVisionPrivacyOk(true);
+    }
+    return true;
+  }
+
+  async function encodeJpegForVision(input: {
+    bytes: Uint8Array;
+    mimeType: string;
+    maxEdgePx: number;
+    jpegQuality: number;
+  }): Promise<Uint8Array | null> {
+    const { bytes, mimeType, maxEdgePx, jpegQuality } = input;
+    if (!mimeType.startsWith("image/") || mimeType === "image/svg+xml") {
+      return null;
+    }
+    if (typeof createImageBitmap !== "function") {
+      return bytes;
+    }
+    try {
+      const copy = bytes.slice();
+      const blob = new Blob([copy], { type: mimeType || "image/jpeg" });
+      const bitmap = await createImageBitmap(blob);
+      const scale = Math.min(1, maxEdgePx / Math.max(bitmap.width, bitmap.height, 1));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        return bytes;
+      }
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      const jpeg = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/jpeg", jpegQuality),
+      );
+      if (!jpeg) {
+        return bytes;
+      }
+      return new Uint8Array(await jpeg.arrayBuffer());
+    } catch {
+      return bytes;
+    }
+  }
+
+  async function refreshVisionSettingsFrom(current = form) {
+    const loaded = await readVisionTagSettings(
+      activeStore(current),
+      formToConfig(current).prefix,
+    );
+    if (loaded) {
+      setVisionSettings(loaded);
+    }
+  }
+
+  async function runVisionJobs(
+    jobs: { assetId: string; originalBytes?: Uint8Array }[],
+  ): Promise<void> {
+    if (!ensureVisionReady()) {
+      return;
+    }
+    if (!allowVisionUpload(visionSettings.sendImage.wifiOnly, networkKind)) {
+      setStatus("蜂窝网络下不送图到视觉模型（wifiOnly）");
+      return;
+    }
+    const queue = createVisionTagQueue();
+    for (const job of jobs) {
+      enqueueVisionTagJob(queue, job);
+    }
+    setVisionQueue({ ...queue, pending: [...queue.pending] });
+    const client = resolveVisionClient(storage);
+    await drainVisionTagQueue(queue, async (job) => {
+      await tagAssetWithVision(lockTarget(), job.assetId, {
+        provider: visionProvider,
+        settings: visionSettings,
+        originalBytes: job.originalBytes,
+        client,
+        encoder: encodeJpegForVision,
+        network: networkKind,
+      });
+    });
+    setVisionQueue({ ...queue, pending: [...queue.pending] });
+    const progress = visionTagProgress(queue);
+    const failed = queue.failed[0];
+    setStatus(
+      failed
+        ? `AI 打标签失败 ${failed.code}：${failed.message}`
+        : `AI 打标签 ${progress.current}/${progress.total}`,
+    );
+    await refreshAssets();
+  }
+
+  async function saveVisionSettings() {
+    if (!canWrite) {
+      setStatus("只读模式：写入口已禁用");
+      return;
+    }
+    const invoke = padHost ? tauriInvokeFn() : null;
+    await persistVisionProvider(storage, visionProvider, invoke);
+    const written = await writeVisionTagSettings(lockTarget(), visionSettings);
+    setVisionSettings(written);
+    setStatus(
+      `已保存视觉设置（提示词 hash ${promptHashShort(await hashVisionPrompt(written.prompt || DEFAULT_VISION_TAG_PROMPT))}）。API Key 仅本机。`,
+    );
   }
 
   async function onWriteEink() {
@@ -1349,6 +1508,15 @@ export function App() {
       });
       setStatus(`已导入素材 ${created.name}（原图在 blobs，本机默认只缓存缩略图）`);
       await refreshAssets();
+      if (
+        shouldEnqueueOnImport({
+          settings: visionSettings,
+          hasApiKey: Boolean(visionProvider.apiKey),
+          item: created,
+        })
+      ) {
+        await runVisionJobs([{ assetId: created.id, originalBytes: bytes }]);
+      }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "素材导入失败");
     }
@@ -1540,6 +1708,14 @@ export function App() {
       <p role="status" style={{ background: "#eef2ff", padding: "0.5rem 0.75rem" }}>
         状态栏：待提交 {pendingCount(sync)}
         {sync.paused ? " · 已暂停" : " · 同步开启"}
+        {visionTagProgress(visionQueue).total > 0
+          ? ` · AI 打标签 ${visionTagProgress(visionQueue).current}/${visionTagProgress(visionQueue).total}`
+          : ""}
+        <span data-testid="vision-progress" hidden={visionTagProgress(visionQueue).total === 0}>
+          {visionTagProgress(visionQueue).total > 0
+            ? `AI 打标签 ${visionTagProgress(visionQueue).current}/${visionTagProgress(visionQueue).total}`
+            : ""}
+        </span>
       </p>
       <p>
         <label>
@@ -1676,6 +1852,157 @@ export function App() {
           受控 PUT
         </button>
       </p>
+      <section data-testid="vision-settings">
+        <h2>视觉模型</h2>
+        <p>
+          客户端直连 OpenAI 兼容接口。API Key 只存在本机，不写入 S3 / Pages / 日志。
+          当前 Key 后四位：<code data-testid="vision-key-last4">{last4Secret(visionProvider.apiKey)}</code>
+        </p>
+        <p>
+          <label>
+            endpoint
+            <input
+              data-testid="vision-endpoint"
+              value={visionProvider.endpoint}
+              onChange={(e) =>
+                setVisionProvider({ ...visionProvider, endpoint: e.target.value })
+              }
+            />
+          </label>
+        </p>
+        <p>
+          <label>
+            model
+            <input
+              data-testid="vision-model"
+              value={visionProvider.model}
+              onChange={(e) =>
+                setVisionProvider({ ...visionProvider, model: e.target.value })
+              }
+            />
+          </label>
+        </p>
+        <p>
+          <label>
+            API Key
+            <input
+              data-testid="vision-api-key"
+              type="password"
+              value={visionProvider.apiKey}
+              autoComplete="off"
+              onChange={(e) =>
+                setVisionProvider({ ...visionProvider, apiKey: e.target.value })
+              }
+            />
+          </label>
+        </p>
+        <p>
+          <label>
+            <input
+              data-testid="vision-enabled"
+              type="checkbox"
+              checked={visionSettings.enabled}
+              onChange={(e) => {
+                const enabled = e.target.checked;
+                if (enabled && !visionPrivacyOk) {
+                  const ok = window.confirm(
+                    "缩略图/降采样图将发送到所填 endpoint。是否启用？",
+                  );
+                  if (!ok) {
+                    return;
+                  }
+                  acceptVisionPrivacy(storage);
+                  setVisionPrivacyOk(true);
+                }
+                setVisionSettings({ ...visionSettings, enabled });
+              }}
+            />
+            启用视觉打标签
+          </label>
+          <label>
+            <input
+              data-testid="vision-on-import"
+              type="checkbox"
+              checked={visionSettings.triggers.onImport}
+              onChange={(e) =>
+                setVisionSettings({
+                  ...visionSettings,
+                  triggers: { ...visionSettings.triggers, onImport: e.target.checked },
+                })
+              }
+            />
+            加入素材库时打标
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={visionSettings.triggers.onImportOnlyIfEmpty}
+              onChange={(e) =>
+                setVisionSettings({
+                  ...visionSettings,
+                  triggers: {
+                    ...visionSettings.triggers,
+                    onImportOnlyIfEmpty: e.target.checked,
+                  },
+                })
+              }
+            />
+            仅无标签时
+          </label>
+          <label>
+            <input
+              data-testid="vision-wifi-only"
+              type="checkbox"
+              checked={visionSettings.sendImage.wifiOnly}
+              onChange={(e) =>
+                setVisionSettings({
+                  ...visionSettings,
+                  sendImage: { ...visionSettings.sendImage, wifiOnly: e.target.checked },
+                })
+              }
+            />
+            仅 Wi-Fi 送图（Pad 默认开）
+          </label>
+        </p>
+        <p>
+          <label>
+            打标签提示词
+            <textarea
+              data-testid="vision-prompt"
+              rows={8}
+              style={{ width: "100%" }}
+              value={visionSettings.prompt}
+              onChange={(e) =>
+                setVisionSettings({ ...visionSettings, prompt: e.target.value })
+              }
+              placeholder="空则使用预置提示词"
+            />
+          </label>
+        </p>
+        <p>
+          <button
+            type="button"
+            data-testid="vision-restore-preset"
+            onClick={() => {
+              if (!window.confirm("恢复预置提示词？当前编辑会丢掉。")) {
+                return;
+              }
+              setVisionSettings(restorePresetPrompt(visionSettings));
+              setStatus("已恢复预置提示词");
+            }}
+          >
+            恢复预置
+          </button>
+          <button
+            type="button"
+            data-testid="vision-save"
+            disabled={!canWrite}
+            onClick={() => void saveVisionSettings()}
+          >
+            保存视觉设置
+          </button>
+        </p>
+      </section>
       <p data-testid="pad-status">
         {status}{" "}
         <span data-testid="conflict-badge">
@@ -2830,6 +3157,7 @@ export function App() {
         ))}
       </ul>
       {selectedAssetId ? (
+        <>
         <p>
           <label>
             给选中素材打标签
@@ -2895,7 +3223,42 @@ export function App() {
               </button>
             ),
           )}
+          <button
+            type="button"
+            data-testid="asset-ai-tag"
+            disabled={!canWrite}
+            onClick={() => void runVisionJobs([{ assetId: selectedAssetId }])}
+          >
+            AI 打标签
+          </button>
+          <button
+            type="button"
+            data-testid="asset-ai-untagged"
+            disabled={!canWrite}
+            onClick={() => {
+              const jobs = assets
+                .filter((item) => needsUntaggedScan(item))
+                .map((item) => ({ assetId: item.id }));
+              void runVisionJobs(jobs);
+            }}
+          >
+            批量未打标签
+          </button>
         </p>
+        {assets.find((item) => item.id === selectedAssetId)?.visionTags ? (
+          <ul data-testid="asset-vision-groups">
+            {(
+              assets.find((item) => item.id === selectedAssetId)?.visionTags?.groups ?? []
+            )
+              .filter((group) => group.tags.length > 0)
+              .map((group) => (
+                <li key={group.dimension}>
+                  {group.dimension}：{group.tags.join("、")}
+                </li>
+              ))}
+          </ul>
+        ) : null}
+        </>
       ) : null}
       <h2 id="pane-kanban">看板</h2>
       <p>

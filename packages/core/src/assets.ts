@@ -464,6 +464,21 @@ export function pickLwwRating(
     : { rating: b.rating, ratingHlc: b.ratingHlc };
 }
 
+function pickLwwVisionTags(
+  a: AssetItem,
+  b: AssetItem,
+): AssetItem["visionTags"] {
+  if (!a.visionTags) {
+    return b.visionTags;
+  }
+  if (!b.visionTags) {
+    return a.visionTags;
+  }
+  return a.visionTags.taggedAt >= b.visionTags.taggedAt
+    ? a.visionTags
+    : b.visionTags;
+}
+
 export function mergeAssetMeta(local: AssetItem, remote: AssetItem): AssetItem {
   const tagged = mergeEntityTags(local, remote);
   const rating = pickLwwRating(local, remote);
@@ -471,6 +486,7 @@ export function mergeAssetMeta(local: AssetItem, remote: AssetItem): AssetItem {
     ...tagged,
     rating: rating.rating,
     ratingHlc: rating.ratingHlc,
+    visionTags: pickLwwVisionTags(local, remote),
     updatedAt:
       local.updatedAt >= remote.updatedAt ? local.updatedAt : remote.updatedAt,
   };

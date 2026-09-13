@@ -26,6 +26,7 @@ import {
   assetIndexKey,
   assetItemMetaKey,
   assetThumbKey,
+  visionTagSettingsKey,
 } from "./index.ts";
 import type {
   KanbanIndex,
@@ -182,6 +183,11 @@ test("kanban index / workspace / board / list / item keys", () => {
   assert.equal(
     assetThumbKey("art/", asset),
     `art/.artstock/v1/assets/items/${asset}/thumb.webp`,
+  );
+  assert.equal(visionTagSettingsKey(""), ".artstock/v1/settings/vision-tag.json");
+  assert.equal(
+    visionTagSettingsKey("art/"),
+    "art/.artstock/v1/settings/vision-tag.json",
   );
 });
 

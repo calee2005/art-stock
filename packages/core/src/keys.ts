@@ -145,6 +145,12 @@ export function assetThumbKey(
   return objectKey(prefix, `assets/items/${assetId}/thumb.webp`);
 }
 
+export function visionTagSettingsKey(
+  prefix: string = DEFAULT_REMOTE_PREFIX,
+): string {
+  return objectKey(prefix, "settings/vision-tag.json");
+}
+
 export function einkConfigKey(prefix: string = DEFAULT_REMOTE_PREFIX): string {
   return objectKey(prefix, "device/eink/config.json");
 }

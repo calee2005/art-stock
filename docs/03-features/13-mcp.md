@@ -26,6 +26,7 @@
 | `kanban_create_item` | 是 | |
 | `kanban_move_item` | 是 | |
 | `kanban_update_item` | 是 | |
+| `auto_tag_assets` | 是 | 视觉打标签入队；不返回 API Key |
 
 禁止 tool 返回 `secretAccessKey`。锁占用时返回 `REMOTE_LOCK_HELD` 文本，让 Agent 重试。
 
