@@ -146,7 +146,7 @@
       "id": "F-012",
       "name": "文件导入与 object meta",
       "phase": "P1",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-011"],
       "apps": ["web", "desktop"],
       "designDoc": "docs/03-features/02-libraries.md",
