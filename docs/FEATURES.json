@@ -376,11 +376,12 @@
       "id": "F-045",
       "name": "Pad 收件箱扫描代替 file watch",
       "phase": "P4",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-033", "F-040"],
       "apps": ["android"],
       "designDoc": "docs/03-features/16-android-pad.md",
-      "acceptance": ["前台扫描或手动刷新发现新文件并按策略 snapshot"]
+      "acceptance": ["前台扫描或手动刷新发现新文件并按策略 snapshot"],
+      "notes": "Pad scan imports new inbox files then commitSnapshot on size change via withRemoteLock (auto-on-save; manual skips). State in filesDir/inbox-scan.json. Pixel Tablet: imported=1 then snapshotted=1; secrets omitted from e2e JSON."
     },
     {
       "id": "F-046",
