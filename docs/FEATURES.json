@@ -534,7 +534,7 @@
       "id": "F-080",
       "name": "subtree 拉取上游固件并刷机验证启动",
       "phase": "P8",
-      "status": "blocked",
+      "status": "doing",
       "dependsOn": [],
       "apps": ["eink"],
       "designDoc": "docs/03-features/17-eink.md",
@@ -545,7 +545,7 @@
         "未删 board 驱动与 RawDraw",
         "未新建平行 firmware 工程"
       ],
-      "notes": "无墨水屏、无刷机线，无法验证 RawDraw 亮屏。未亮屏前不准删驱动或换框架。软件功能已完成，剩余仅本项与 F-082 硬件 blocked。"
+      "notes": "本机 COM3 VID_303A ESP32-S3 已连接；领取后 subtree + 刷机验证。"
     },
     {
       "id": "F-081",
