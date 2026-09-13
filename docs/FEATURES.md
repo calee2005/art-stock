@@ -4,7 +4,7 @@ Agent 以 [FEATURES.json](FEATURES.json) 为任务源，本文件为可读勾选
 
 领取规则见 [AGENTS.md](../AGENTS.md)。阶段说明见 [04-roadmap.md](04-roadmap.md)。
 
-当前进度：P0 已完成；P1 **F-010**–**F-015** 已完成；P6 **F-060**、**F-061** 已完成。完成一项后请同步改 JSON 的 `status`，并把下面相应行改为 `[x]`。
+当前进度：P0 已完成；P1 **F-010**–**F-015** 已完成；P6 **F-060**–**F-062** 已完成。完成一项后请同步改 JSON 的 `status`，并把下面相应行改为 `[x]`。
 
 ## P0 骨架
 
@@ -58,7 +58,7 @@ Agent 以 [FEATURES.json](FEATURES.json) 为任务源，本文件为可读勾选
 
 - [x] **F-060** 看板 Workspace 与 Board — [10-kanban](03-features/10-kanban.md)
 - [x] **F-061** List 与 Item CRUD（F-060）
-- [ ] **F-062** 拖拽改 listId/order（F-061）
+- [x] **F-062** 拖拽改 listId/order（F-061）
 - [ ] **F-063** 多维数据表 — [09-database](03-features/09-database.md)
 - [ ] **F-064** 冲突 UI — [11-conflicts](03-features/11-conflicts.md)（F-043）
 

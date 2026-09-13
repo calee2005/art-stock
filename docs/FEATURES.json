@@ -456,11 +456,12 @@
       "id": "F-062",
       "name": "看板拖拽改 listId/order",
       "phase": "P6",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-061"],
       "apps": ["web", "desktop", "android"],
       "designDoc": "docs/03-features/10-kanban.md",
-      "acceptance": ["列间拖动刷新后仍正确", "Pad 为横向滑列 + 全屏详情"]
+      "acceptance": ["列间拖动刷新后仍正确", "Pad 为横向滑列 + 全屏详情"],
+      "notes": "moveItem under withRemoteLock; HTML5 drop between lists; CSS snap + full-screen detail under 720px."
     },
     {
       "id": "F-063",
