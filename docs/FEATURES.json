@@ -344,7 +344,7 @@
       "id": "F-043",
       "name": "同分支分叉生成 conflict 分支",
       "phase": "P4",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-042"],
       "apps": ["core"],
       "designDoc": "docs/02-storage-protocol.md",
