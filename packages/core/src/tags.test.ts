@@ -48,7 +48,6 @@ test("tag folder and file then filter by tag", async () => {
     ["hero.png"],
   );
   assert.equal(nodesMatchingTags(after.tree.nodes, ["立绘", "角色"]).length, 0);
-  const meta = file.object;
   const taggedFile = after.tree.nodes.find((node) => node.id === fileNode.id);
   assert.ok(taggedFile?.tags.includes("立绘"));
   const fileMeta = await getObjectMeta(remote, file.object.id);

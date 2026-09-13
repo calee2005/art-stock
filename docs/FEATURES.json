@@ -161,7 +161,7 @@
       "id": "F-013",
       "name": "文件夹与文件标签",
       "phase": "P1",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-012"],
       "apps": ["web", "desktop", "core"],
       "designDoc": "docs/03-features/02-libraries.md",
@@ -169,7 +169,7 @@
         "打标签、按标签筛选",
         "合并遵循 OR-Set（单测）"
       ],
-      "notes": ""
+      "notes": "OR-Set add/remove with HLC; delete wins earlier add; addNodeTag/removeNodeTag under withRemoteLock; filter AND of tags."
     },
     {
       "id": "F-014",
