@@ -30,4 +30,10 @@ class KeystoreSecretsTest {
         assertFalse(xml.contains(secret))
         assertNotEquals(secret, xml)
     }
+
+    @Test
+    fun nativeAttachStoresContextWithoutThrowing() {
+        val ctx = InstrumentationRegistry.getInstrumentation().targetContext
+        KeystoreSecrets.nativeAttach(ctx.applicationContext)
+    }
 }

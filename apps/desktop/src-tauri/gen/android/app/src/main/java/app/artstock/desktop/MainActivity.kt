@@ -8,6 +8,8 @@ import androidx.activity.enableEdgeToEdge
 class MainActivity : TauriActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
+    // wry does not initialize ndk-context; attach before WebView IPC starts.
+    KeystoreSecrets.nativeAttach(applicationContext)
     super.onCreate(savedInstanceState)
   }
 

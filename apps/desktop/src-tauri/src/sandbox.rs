@@ -88,61 +88,50 @@ pub fn meta_get(_paths: &SandboxPaths, key: &str) -> Result<Option<String>, Stri
 
 #[cfg(target_os = "android")]
 mod android_sandbox {
-    use jni::objects::{JObject, JString, JValue};
-    use jni::JavaVM;
+    use jni::objects::{JString, JValue};
 
     pub fn put(key: &str, value: &str) -> Result<(), String> {
-        let ctx = ndk_context::android_context();
-        let vm = unsafe { JavaVM::from_raw(ctx.vm().cast()) }.map_err(|err| err.to_string())?;
-        let mut env = vm.attach_current_thread().map_err(|err| err.to_string())?;
-        let context = unsafe { JObject::from_raw(ctx.context().cast()) };
-        let class = env
-            .find_class("app/artstock/desktop/SandboxStore")
+        crate::android_jni::with_jni(|env, handles| {
+            let jkey = env.new_string(key).map_err(|err| err.to_string())?;
+            let jval = env.new_string(value).map_err(|err| err.to_string())?;
+            env.call_static_method(
+                handles.sandbox,
+                "putMeta",
+                "(Landroid/content/Context;Ljava/lang/String;Ljava/lang/String;)V",
+                &[
+                    JValue::Object(handles.context),
+                    JValue::Object(&jkey),
+                    JValue::Object(&jval),
+                ],
+            )
             .map_err(|err| err.to_string())?;
-        let jkey = env.new_string(key).map_err(|err| err.to_string())?;
-        let jval = env.new_string(value).map_err(|err| err.to_string())?;
-        env.call_static_method(
-            class,
-            "putMeta",
-            "(Landroid/content/Context;Ljava/lang/String;Ljava/lang/String;)V",
-            &[
-                JValue::Object(&context),
-                JValue::Object(&jkey),
-                JValue::Object(&jval),
-            ],
-        )
-        .map_err(|err| err.to_string())?;
-        let _ = env;
-        Ok(())
+            crate::android_jni::check_exception(env)
+        })
     }
 
     pub fn get(key: &str) -> Result<Option<String>, String> {
-        let ctx = ndk_context::android_context();
-        let vm = unsafe { JavaVM::from_raw(ctx.vm().cast()) }.map_err(|err| err.to_string())?;
-        let mut env = vm.attach_current_thread().map_err(|err| err.to_string())?;
-        let context = unsafe { JObject::from_raw(ctx.context().cast()) };
-        let class = env
-            .find_class("app/artstock/desktop/SandboxStore")
-            .map_err(|err| err.to_string())?;
-        let jkey = env.new_string(key).map_err(|err| err.to_string())?;
-        let result = env
-            .call_static_method(
-                class,
-                "getMeta",
-                "(Landroid/content/Context;Ljava/lang/String;)Ljava/lang/String;",
-                &[JValue::Object(&context), JValue::Object(&jkey)],
-            )
-            .map_err(|err| err.to_string())?;
-        let obj = result.l().map_err(|err| err.to_string())?;
-        if obj.is_null() {
-            return Ok(None);
-        }
-        let text = env
-            .get_string(&JString::from(obj))
-            .map_err(|err| err.to_string())?
-            .to_string_lossy()
-            .into_owned();
-        Ok(Some(text))
+        crate::android_jni::with_jni(|env, handles| {
+            let jkey = env.new_string(key).map_err(|err| err.to_string())?;
+            let result = env
+                .call_static_method(
+                    handles.sandbox,
+                    "getMeta",
+                    "(Landroid/content/Context;Ljava/lang/String;)Ljava/lang/String;",
+                    &[JValue::Object(handles.context), JValue::Object(&jkey)],
+                )
+                .map_err(|err| err.to_string())?;
+            crate::android_jni::check_exception(env)?;
+            let obj = result.l().map_err(|err| err.to_string())?;
+            if obj.is_null() {
+                return Ok(None);
+            }
+            let text = env
+                .get_string(&JString::from(obj))
+                .map_err(|err| err.to_string())?
+                .to_string_lossy()
+                .into_owned();
+            Ok(Some(text))
+        })
     }
 }
 

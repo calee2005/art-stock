@@ -7,3 +7,4 @@
 | id | 症状 | 复现 | 影响 FEATURE | 状态 |
 | --- | --- | --- | --- | --- |
 | B-001 | `docs/FEATURES.json` F-081 `notes` 末尾多了一个 `]`，JSON 无法解析 | 打开 FEATURES.json 跑 `JSON.parse` | 任务领取扫描 | fixed |
+| B-002 | Pad WebView `invoke(secure_store_*)` SIGABRT：`ndk-context` 未初始化（wry 不调 `initialize_android_context`） | Pixel Tablet API 34 打开 MainActivity 后立刻崩溃 | F-023 | fixed |

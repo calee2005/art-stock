@@ -8,9 +8,22 @@ PKG=app.artstock.desktop
 ACT="$PKG/.SecretProbeActivity"
 MAIN="$PKG/.MainActivity"
 ART="${ART_STOCK_ARTIFACTS:-/opt/cursor/artifacts}"
+ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 mkdir -p "$ART"
 
 read_probe() { adb shell run-as "$PKG" cat files/probe-status.txt; }
+
+if ! curl -sf -o /dev/null -X OPTIONS "http://127.0.0.1:19001/art/" 2>/dev/null; then
+  echo "starting S3 mock on :19001..."
+  (cd "$ROOT" && S3_MOCK_PORT=19001 node --experimental-strip-types packages/s3/src/mock-cli.ts >"$ART/f023_s3_mock.log" 2>&1) &
+  for _ in $(seq 1 30); do
+    if curl -sf -o /dev/null -X OPTIONS "http://127.0.0.1:19001/art/" 2>/dev/null; then
+      break
+    fi
+    sleep 0.2
+  done
+fi
+curl -sf -o /dev/null -X OPTIONS "http://127.0.0.1:19001/art/"
 
 echo "seeding Keystore (no log of secret values)..."
 adb reverse tcp:19001 tcp:19001 >/dev/null
@@ -22,9 +35,7 @@ plain=$(read_probe)
 [[ "$plain" == "no-plaintext" ]]
 
 echo "writing public pad-e2e.json..."
-adb shell run-as "$PKG" /system/bin/sh -c 'cat > files/pad-e2e.json' <<'JSON'
-{"endpoint":"http://127.0.0.1:19001","bucket":"art","forcePathStyle":true,"libraryName":"Pad库"}
-JSON
+printf '%s' '{"endpoint":"http://127.0.0.1:19001","bucket":"art","forcePathStyle":true,"libraryName":"Pad库"}' | adb shell run-as "$PKG" tee /data/user/0/app.artstock.desktop/files/pad-e2e.json >/dev/null
 cfg=$(adb shell run-as "$PKG" cat files/pad-e2e.json)
 [[ "$cfg" != *secretAccessKey* ]]
 [[ "$cfg" != *super-secret* ]]
@@ -38,15 +49,18 @@ adb shell wm user-rotation lock 1 >/dev/null || adb shell settings put system us
 adb shell am start -W -n "$MAIN" >/dev/null
 
 status=""
-for _ in $(seq 1 40); do
+for _ in $(seq 1 45); do
   status=$(adb shell run-as "$PKG" cat files/pad-e2e-status.json 2>/dev/null || true)
   if [[ "$status" == *'"ok": true'* || "$status" == *'"ok":true'* ]]; then
+    break
+  fi
+  if [[ "$status" == *'"ok": false'* || "$status" == *'"ok":false'* ]]; then
     break
   fi
   sleep 2
 done
 
-echo "$status" > "$ART/f023_pad_e2e_status.json"
+printf '%s\n' "$status" > "$ART/f023_pad_e2e_status.json"
 [[ "$status" == *secretAccessKey* ]] && { echo "secret leaked in status"; exit 1; }
 [[ "$status" == *'"ok": true'* || "$status" == *'"ok":true'* ]] || { echo "e2e status not ok: $status"; exit 1; }
 [[ "$status" == *Pad库* ]] || { echo "library missing: $status"; exit 1; }

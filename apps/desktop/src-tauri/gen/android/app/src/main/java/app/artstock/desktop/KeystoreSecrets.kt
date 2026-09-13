@@ -15,6 +15,14 @@ import javax.crypto.spec.GCMParameterSpec
  * Ciphertext may live in SharedPreferences; plaintext secrets must not.
  */
 object KeystoreSecrets {
+    init {
+        System.loadLibrary("art_stock_lib")
+    }
+
+    /** Store JavaVM + Application context before any Tauri `secure_store_*` IPC. */
+    @JvmStatic
+    external fun nativeAttach(context: Context)
+
     const val PREFS_NAME = "artstock.secrets.enc"
     private const val ANDROID_KEYSTORE = "AndroidKeyStore"
     private const val MASTER_ALIAS = "artstock.master"
