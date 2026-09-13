@@ -33,6 +33,7 @@ import {
   deleteBranch,
   getObjectMeta,
   listBranches,
+  listConflictBranches,
   listSnapshots,
   rollbackBranch,
   switchDefaultBranch,
@@ -83,6 +84,9 @@ import {
   type DatabaseDoc,
   createHlcClock,
   tickHlc,
+  conflictBadgeCount,
+  countUnresolvedConflicts,
+  resolveConflictBranch,
   PLACEHOLDER_WEBP,
   LOCAL_PIN_STORAGE_KEY,
   addPin,
@@ -247,6 +251,8 @@ export function App() {
   const [dbDoc, setDbDoc] = useState<DatabaseDoc | null>(null);
   const [dbRemote, setDbRemote] = useState<DatabaseDoc | null>(null);
   const [dbConflicts, setDbConflicts] = useState<CellConflict[]>([]);
+  const [conflictCount, setConflictCount] = useState(0);
+  const [keepBothName, setKeepBothName] = useState("kept");
   const dbClock = useMemo(() => createHlcClock("web-local"), []);
   const [pins, setPins] = useState<Pin[]>(() => {
     try {
@@ -409,6 +415,16 @@ export function App() {
       libraryId,
     );
     setTreeNodes(current?.tree.nodes ?? []);
+    const ids = (current?.tree.nodes ?? [])
+      .map((node) => node.objectId)
+      .filter((id): id is string => Boolean(id));
+    const n = await countUnresolvedConflicts(
+      activeStore(form),
+      formToConfig(form).prefix,
+      ids,
+      0,
+    );
+    setConflictCount(n);
   }
 
   async function onCreateFolder() {
@@ -576,6 +592,13 @@ export function App() {
     setActiveBranch((current) =>
       branchList.some((item) => item.name === current) ? current : nextDefault,
     );
+    const n = await countUnresolvedConflicts(
+      store,
+      prefix,
+      treeNodes.map((node) => node.objectId).filter((id): id is string => Boolean(id)),
+      0,
+    );
+    setConflictCount(n);
   }
 
   async function loadMarkdown(objectId: string) {
@@ -732,6 +755,64 @@ export function App() {
       await refreshSnapshots(node.objectId);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "建分支失败");
+    }
+  }
+
+  async function onSimulateFork() {
+    const node = treeNodes.find((item) => item.id === selectedNodeId);
+    const current = branches.find((item) => item.name === activeBranch);
+    if (!canWrite || !node?.objectId || !current) {
+      setStatus("请选择文件节点");
+      return;
+    }
+    const parentId = current.snapshotId;
+    await commitSnapshot(
+      lockTarget(),
+      node.objectId,
+      new TextEncoder().encode(`remote-${Date.now()}`),
+      "remote-side",
+      activeBranch,
+    );
+    await commitSnapshot(
+      lockTarget(),
+      node.objectId,
+      new TextEncoder().encode(`local-${Date.now()}`),
+      "local-side",
+      activeBranch,
+      { expectedParentSnapshotId: parentId },
+    );
+    setStatus("已构造离线分叉，冲突分支未丢 snapshot");
+    await refreshSnapshots(node.objectId);
+    if (selectedLibraryId) {
+      await refreshTree(selectedLibraryId);
+    }
+  }
+
+  async function onResolveConflict(
+    name: string,
+    action: "adopt-remote" | "adopt-local" | "keep-both",
+  ) {
+    const node = treeNodes.find((item) => item.id === selectedNodeId);
+    if (!canWrite || !node?.objectId) {
+      return;
+    }
+    try {
+      await resolveConflictBranch(lockTarget(), node.objectId, name, action, {
+        keepAs: keepBothName,
+      });
+      setStatus(
+        action === "adopt-remote"
+          ? "已采用远端，冲突分支已归档删除"
+          : action === "adopt-local"
+            ? "已采用本地，main 指向冲突快照"
+            : `已保留双方为 ${keepBothName}`,
+      );
+      await refreshSnapshots(node.objectId);
+      if (selectedLibraryId) {
+        await refreshTree(selectedLibraryId);
+      }
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "处理冲突失败");
     }
   }
 
@@ -1046,7 +1127,12 @@ export function App() {
           受控 PUT
         </button>
       </p>
-      <p>{status}</p>
+      <p>
+        {status}{" "}
+        <span data-testid="conflict-badge">
+          冲突 {conflictBadgeCount(conflictCount, 0)}
+        </span>
+      </p>
       <ul>
         {keys.map((key) => (
           <li key={key}>{key}</li>
@@ -1276,6 +1362,65 @@ export function App() {
               <button type="button" onClick={() => void onCreateBranch()} disabled={!canWrite}>
                 从当前快照建分支
               </button>
+              <h3>冲突</h3>
+              <p>
+                徽章 {conflictCount}。处理写操作走锁，未处理不丢 snapshot。
+              </p>
+              <button
+                type="button"
+                data-testid="simulate-fork"
+                disabled={!canWrite}
+                onClick={() => void onSimulateFork()}
+              >
+                模拟离线分叉
+              </button>
+              <label>
+                保留双方名称
+                <input
+                  data-testid="keep-both-name"
+                  value={keepBothName}
+                  onChange={(e) => setKeepBothName(e.target.value)}
+                />
+              </label>
+              <ul data-testid="conflict-list">
+                {branches
+                  .filter((branch) => branch.name.startsWith("conflict/"))
+                  .map((branch) => (
+                    <li key={branch.name}>
+                      {branch.name} <code>{branch.snapshotId.slice(0, 8)}</code>
+                      <button
+                        type="button"
+                        data-testid="conflict-adopt-remote"
+                        disabled={!canWrite}
+                        onClick={() =>
+                          void onResolveConflict(branch.name, "adopt-remote")
+                        }
+                      >
+                        采用远端
+                      </button>
+                      <button
+                        type="button"
+                        data-testid="conflict-adopt-local"
+                        disabled={!canWrite}
+                        onClick={() =>
+                          void onResolveConflict(branch.name, "adopt-local")
+                        }
+                      >
+                        采用本地
+                      </button>
+                      <button
+                        type="button"
+                        data-testid="conflict-keep-both"
+                        disabled={!canWrite}
+                        onClick={() =>
+                          void onResolveConflict(branch.name, "keep-both")
+                        }
+                      >
+                        保留双方
+                      </button>
+                    </li>
+                  ))}
+              </ul>
               <h3>快照</h3>
               <label>
                 message

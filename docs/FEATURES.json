@@ -489,11 +489,12 @@
       "id": "F-064",
       "name": "冲突处理 UI",
       "phase": "P6",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-043"],
       "apps": ["web", "desktop", "android"],
       "designDoc": "docs/03-features/11-conflicts.md",
-      "acceptance": ["徽章计数", "采用远端 / 采用本地 / 保留双方"]
+      "acceptance": ["徽章计数", "采用远端 / 采用本地 / 保留双方"],
+      "notes": "resolveConflictBranch via withRemoteLock: adopt-remote deletes conflict/*; adopt-local moves main pointer; keep-both renames. Snapshots/blobs retained. Web badge + Pad 保留双方."
     },
     {
       "id": "F-070",

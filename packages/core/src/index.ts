@@ -342,3 +342,11 @@ export {
   type DatabaseDoc,
   type DatabaseRow,
 } from "./database.ts";
+
+export {
+  conflictBadgeCount,
+  countUnresolvedConflicts,
+  resolveConflictBranch,
+  type ConflictAction,
+  type ResolveConflictOptions,
+} from "./conflicts.ts";
