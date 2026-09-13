@@ -441,7 +441,7 @@
       "id": "F-061",
       "name": "看板 List 与 Item CRUD",
       "phase": "P6",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-060"],
       "apps": ["web", "desktop", "android", "core"],
       "designDoc": "docs/03-features/10-kanban.md",
@@ -450,7 +450,7 @@
         "Item 含标题、描述、截止、清单、标签、封面素材、附件 object",
         "对象按层拆分存储"
       ],
-      "notes": ""
+      "notes": "createBoard seeds 待办/进行中/完成; lists under boards/{id}/lists/; items under kanban/items/; withRemoteLock."
     },
     {
       "id": "F-062",
