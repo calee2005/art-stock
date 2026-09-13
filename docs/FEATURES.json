@@ -582,7 +582,7 @@
       "id": "F-090",
       "name": "多远端复制（按 remoteId 排序加锁）",
       "phase": "P9",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-015", "F-003"],
       "apps": ["desktop", "core"],
       "designDoc": "docs/02-storage-protocol.md",
