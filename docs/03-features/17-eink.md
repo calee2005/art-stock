@@ -14,7 +14,7 @@
 
 ### 第一项任务 F-eink-bootstrap
 
-按上游 README 配 ESP-IDF、编译、刷入 ZecTrix ESP32-S3 4.2 寸四色屏。
+按上游 README 配 ESP-IDF、编译、刷入 ZecTrix ESP32-S3 4.2 寸四色屏。本机 Windows 约定 IDF 源码：`C:\esp\v6.0.3\esp-idf\`（v6.0.3）。本机由 EIM 安装，应先 `. C:\Espressif\tools\Microsoft.v6.0.3.PowerShell_profile.ps1` 再 `idf.py`；单独 `export.ps1` 会误用 `%USERPROFILE%\.espressif` 的 v5 布局。可用 `IDF_PATH` 覆盖；构建脚本未设置时回退到上述源码路径。不要使用 `C:\Users\calee\esp\v5.4.2`。
 
 验收：RawDraw 主界面亮屏；WiFi / 设置页可进。
 
