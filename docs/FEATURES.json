@@ -51,7 +51,7 @@
       "id": "F-002",
       "name": "S3 适配接口 + mock 实现",
       "phase": "P0",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-001"],
       "apps": ["core", "web"],
       "designDoc": "docs/03-features/01-remotes.md",
