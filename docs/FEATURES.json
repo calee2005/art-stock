@@ -233,7 +233,7 @@
       "id": "F-022",
       "name": "Android 沙箱 SQLite 与缓存目录",
       "phase": "P2",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-021", "F-015"],
       "apps": ["android"],
       "designDoc": "docs/03-features/16-android-pad.md",
