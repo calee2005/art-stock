@@ -421,7 +421,7 @@
       "id": "F-052",
       "name": "思维导图编辑与 JSON blob",
       "phase": "P5",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-012"],
       "apps": ["web", "desktop", "android"],
       "designDoc": "docs/03-features/08-mindmap.md",
