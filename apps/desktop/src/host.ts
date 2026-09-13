@@ -14,8 +14,10 @@ import {
   fetchEinkForFirmware,
   refreshEinkSummary,
   writeEinkConfig,
+  replicateObject,
   type EinkConfig,
   type EinkSummary,
+  type NamedRemote,
   type AutoSnapshotResult,
   type ImportAssetInput,
   type ObjectStore,
@@ -213,4 +215,11 @@ export async function refreshEinkSummaryOnDesktop(
 /** Firmware-shaped GET: two keys, no lock, no List. */
 export async function getEinkForDevice(store: ObjectStore, prefix: string) {
   return fetchEinkForFirmware(store, prefix);
+}
+
+export async function replicateObjectOnDesktop(
+  remotes: NamedRemote[],
+  objectId: string,
+) {
+  return replicateObject(remotes, objectId);
 }

@@ -365,3 +365,10 @@ export {
   writeEinkConfig,
   writeEinkSummary,
 } from "./eink.ts";
+
+export {
+  replicateObject,
+  sortRemotesById,
+  withOrderedRemoteLocks,
+  type NamedRemote,
+} from "./replicate.ts";
