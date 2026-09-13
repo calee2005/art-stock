@@ -189,7 +189,7 @@
       "id": "F-015",
       "name": "元数据与缩略图缓存 + 同步队列",
       "phase": "P1",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-012"],
       "apps": ["web", "desktop", "core"],
       "designDoc": "docs/03-features/05-sync.md",
