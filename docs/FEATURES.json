@@ -489,7 +489,7 @@
       "id": "F-064",
       "name": "冲突处理 UI",
       "phase": "P6",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-043"],
       "apps": ["web", "desktop", "android"],
       "designDoc": "docs/03-features/11-conflicts.md",
