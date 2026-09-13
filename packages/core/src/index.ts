@@ -67,3 +67,18 @@ export {
   oplogKey,
   protocolRoot,
 } from "./keys.ts";
+
+export { StoreError, isStoreError, type StoreErrorCode } from "./store-error.ts";
+export {
+  MemoryObjectStore,
+  type DeleteOptions,
+  type HeadResult,
+  type ListObject,
+  type ListOptions,
+  type ListResult,
+  type MemoryObjectStoreOptions,
+  type ObjectBody,
+  type ObjectStore,
+  type PutConditions,
+  type PutOptions,
+} from "./store.ts";

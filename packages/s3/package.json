@@ -10,7 +10,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "test": "node -e \"process.exit(0)\""
+    "test": "node --experimental-strip-types --test src/url.test.ts"
+  },
+  "dependencies": {
+    "@art-stock/core": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.9.2"
