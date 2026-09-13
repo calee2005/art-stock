@@ -299,11 +299,12 @@
       "id": "F-033",
       "name": "Pad 系统分享导入素材/收件箱",
       "phase": "P3",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-023", "F-030"],
       "apps": ["android"],
       "designDoc": "docs/03-features/16-android-pad.md",
-      "acceptance": ["从其它 App 分享一张图可进入收件箱或素材库"]
+      "acceptance": ["从其它 App 分享一张图可进入收件箱或素材库"],
+      "notes": "ACTION_SEND image/* → filesDir/inbox; Pad UI archives via importAsset/withRemoteLock. Pixel Tablet e2e: from-gallery.png importedTo assets. Secrets omitted from e2e JSON."
     },
     {
       "id": "F-040",
