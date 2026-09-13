@@ -21,10 +21,14 @@ import {
   pendingCount,
   pushSync,
   setSyncPaused,
+  createWorkspace,
+  createBoard,
+  listWorkspaces,
   type ImportQueue,
   type SyncState,
   type ObjectStore,
   type TreeNode,
+  type KanbanIndexWorkspace,
 } from "@art-stock/core";
 import {
   deviceIdentity,
@@ -71,6 +75,10 @@ export function App() {
   const [selectedNodeId, setSelectedNodeId] = useState("");
   const [tagDraft, setTagDraft] = useState("");
   const [tagFilter, setTagFilter] = useState("");
+  const [workspaces, setWorkspaces] = useState<KanbanIndexWorkspace[]>([]);
+  const [newWorkspaceName, setNewWorkspaceName] = useState("");
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState("");
+  const [newBoardName, setNewBoardName] = useState("");
   const device = useMemo(() => deviceIdentity(storage), []);
   const preview = useMemo(
     () => protocolRoot(form.prefix),
@@ -341,6 +349,34 @@ export function App() {
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "移除标签失败");
     }
+  }
+
+  async function refreshKanban() {
+    const listed = await listWorkspaces(activeStore(form), formToConfig(form).prefix);
+    setWorkspaces(listed);
+  }
+
+  async function onCreateWorkspace() {
+    if (!canWrite) {
+      setStatus("只读模式：写入口已禁用");
+      return;
+    }
+    const created = await createWorkspace(lockTarget(), newWorkspaceName);
+    setNewWorkspaceName("");
+    setSelectedWorkspaceId(created.id);
+    setStatus(`已创建 Workspace ${created.name}`);
+    await refreshKanban();
+  }
+
+  async function onCreateBoard() {
+    if (!canWrite || !selectedWorkspaceId) {
+      setStatus("请先选择 Workspace");
+      return;
+    }
+    const created = await createBoard(lockTarget(), selectedWorkspaceId, newBoardName);
+    setNewBoardName("");
+    setStatus(`已创建 Board ${created.name}`);
+    await refreshKanban();
   }
 
   return (
@@ -675,6 +711,59 @@ export function App() {
           </p>
         </section>
       ) : null}
+      <h2>看板</h2>
+      <p>
+        <button type="button" onClick={() => void refreshKanban()}>
+          刷新 Workspace
+        </button>
+      </p>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void onCreateWorkspace();
+        }}
+      >
+        <label>
+          新 Workspace
+          <input
+            value={newWorkspaceName}
+            onChange={(e) => setNewWorkspaceName(e.target.value)}
+            placeholder="例如 工作室"
+          />
+        </label>
+        <button type="submit" disabled={!canWrite}>
+          创建 Workspace
+        </button>
+      </form>
+      <ul>
+        {workspaces.map((ws) => (
+          <li key={ws.id}>
+            <button type="button" onClick={() => setSelectedWorkspaceId(ws.id)}>
+              {ws.name}
+            </button>
+            <code>{ws.id.slice(0, 8)}</code>
+            看板 {ws.boardIds.length}
+          </li>
+        ))}
+      </ul>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void onCreateBoard();
+        }}
+      >
+        <label>
+          新 Board
+          <input
+            value={newBoardName}
+            onChange={(e) => setNewBoardName(e.target.value)}
+            placeholder="例如 开发"
+          />
+        </label>
+        <button type="submit" disabled={!canWrite}>
+          创建 Board
+        </button>
+      </form>
       <style>{`
         label { display: block; margin: 0.4rem 0; }
         input[type="text"], input:not([type]), input[type="password"] { width: 100%; }

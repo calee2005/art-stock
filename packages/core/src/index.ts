@@ -106,6 +106,14 @@ export {
 } from "./libraries.ts";
 
 export {
+  createBoard,
+  createWorkspace,
+  getBoard,
+  listWorkspaces,
+  readKanbanIndex,
+} from "./kanban.ts";
+
+export {
   createFolder,
   folderDepth,
   moveNode,
