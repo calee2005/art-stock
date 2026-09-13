@@ -394,7 +394,7 @@
       "id": "F-050",
       "name": "Markdown WYSIWYG、TOC、插入素材",
       "phase": "P5",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-012", "F-030"],
       "apps": ["web", "desktop", "android"],
       "designDoc": "docs/03-features/06-markdown.md",
