@@ -615,7 +615,7 @@
       "id": "F-092",
       "name": "Android SAF 授权目录与后台尽力同步",
       "phase": "P9",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-045"],
       "apps": ["android"],
       "designDoc": "docs/03-features/16-android-pad.md",
@@ -624,7 +624,7 @@
         "充电+Wi-Fi 时尽力同步有文档化限制",
         "系统回收缓存不影响 pinned"
       ],
-      "notes": ""
+      "notes": "SAF OpenDocumentTree + persistable URI; revoke clears grant so scan copied=0. WorkManager charging+UNMETERED copies into inbox only, never withRemoteLock. Pixel Tablet e2e: copied=1 then copiedAfterRevoke=0; filesDir/pinned/keep.bin survived reclaim_cache. Secrets omitted."
     }
   ]
 }
