@@ -1,0 +1,37 @@
+[[permission]]
+identifier = "allow-host-commands"
+description = "Keystore, sandbox, thumbs, watch, and pad e2e public status. Secrets never go in e2e files."
+commands.allow = [
+  "secure_store_set",
+  "secure_store_get",
+  "cache_dir",
+  "sandbox_layout",
+  "metadata_put",
+  "metadata_get",
+  "reclaim_cache",
+  "thumb_generate",
+  "watch_start",
+  "watch_stop",
+  "pad_e2e_config",
+  "pad_e2e_report",
+  "pad_share_e2e_config",
+  "pad_share_e2e_report",
+  "pad_wifi_e2e_config",
+  "pad_wifi_e2e_report",
+  "pad_scan_e2e_config",
+  "pad_scan_e2e_report",
+  "pad_saf_e2e_config",
+  "pad_saf_e2e_report",
+  "inbox_list",
+  "inbox_read",
+  "inbox_remove",
+  "inbox_scan_load",
+  "inbox_scan_save",
+  "saf_status",
+  "saf_scan",
+  "saf_revoke",
+  "saf_open_picker",
+  "saf_grant_e2e",
+  "saf_constraints",
+  "network_kind"
+]

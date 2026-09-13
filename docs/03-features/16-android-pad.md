@@ -19,8 +19,15 @@ Pad 与桌面同等优先级，不是缩小窗口。通勤与外出创作的主�
 
 ### 工具链（写入构建说明，实现时锁定版本号）
 
-- JDK 17+、Android SDK、NDK（Tauri 2 文档当时要求的版本）
-- `rustup target add aarch64-linux-android`（模拟器另加 x86_64/i686 如需要）
+锁定（F-021 验证环境）：
+
+- JDK 21、Android SDK Platform 34/36、Build-Tools 34.0.0 / 36.0.0
+- NDK **27.2.12479018**、CMake 3.22.1、Emulator 37.1.11、platform-tools 37.0.1
+- Gradle 8.14.3、Android Gradle Plugin 8.11.0、Kotlin 1.9.25
+- `rustup target add aarch64-linux-android x86_64-linux-android`（模拟器 x86_64）
+- 命令：`cd apps/desktop && pnpm exec tauri android init --ci`（已生成 `src-tauri/gen/android`）；`pnpm exec tauri android build --debug --target x86_64`
+
+密钥：Android Keystore 中的 AES-GCM 主密钥包装 `secretAccessKey` / `accessKeyId`；SharedPreferences 只存密文，禁止明文裸存。
 
 ## 交互与导入
 
@@ -34,10 +41,18 @@ Pad 与桌面同等优先级，不是缩小窗口。通勤与外出创作的主�
 ## 本地存储与同步
 
 - 密钥：Keystore / EncryptedSharedPreferences（Tauri 插件或自写 command）。
-- SQLite 在应用沙箱；缓存目录可被系统回收；**钉选目录不可随意删**（应用私有 `pinned/`）。
+- SQLite 在应用沙箱（`getDatabasePath("metadata.db")` / `filesDir/metadata.sqlite`）；缓存目录用系统 `cacheDir`（可被回收）；**钉选目录**为应用私有 `filesDir/pinned/`，`reclaim_cache` 不得删除。
 - 后台：遵守 Android 限制；同步在前台，或充电+Wi-Fi 时尽力而为。不承诺常驻监视。
 - `deviceId` 独立。写远端走同一把全局锁。
 - 冲突与桌面相同；通勤双开走冲突分支。
+
+### 后台尽力同步限制（F-092）
+
+- WorkManager 仅在 **充电 + 非计费网络（Wi-Fi / 以太网）** 时运行；系统最短周期约 15 分钟。
+- 后台只把 SAF 授权目录里的新文件拷进应用收件箱，**不**调用 `withRemoteLock()`、不写 OSS、不启动 WebView。
+- 持锁上传与 snapshot 只在前台 Pad 扫描（F-045）。未充电、蜂窝、或进程被杀则本周期跳过。
+- **不承诺**桌面级无限 file watch 或常驻同步。
+- `reclaim_cache` 只清理 `cacheDir`，不得删除 `filesDir/pinned/`。
 
 ## 功能可用性
 

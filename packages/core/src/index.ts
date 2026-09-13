@@ -1,2 +1,379 @@
-/** Protocol types, object keys, lock, and merge. Implementation lands in F-001+. */
-export const SCHEMA_VERSION = 1 as const;
+export { SCHEMA_VERSION } from "./types.ts";
+export type {
+  AssetCachePolicy,
+  AssetFolder,
+  AssetIndex,
+  AssetIndexEntry,
+  AssetItem,
+  AssetRating,
+  BranchPointer,
+  DeviceId,
+  EinkConfig,
+  EinkSummary,
+  EinkSummaryRecentFile,
+  EinkSummaryTodo,
+  Hlc,
+  Iso8601,
+  KanbanBoardLabel,
+  KanbanBoardMeta,
+  KanbanChecklistItem,
+  KanbanIndex,
+  KanbanIndexWorkspace,
+  KanbanItem,
+  KanbanList,
+  KanbanWorkspaceMeta,
+  LibraryMeta,
+  LibraryTree,
+  LockDocument,
+  LockPurpose,
+  Manifest,
+  ManifestLibraryRef,
+  ObjectMeta,
+  ObjectType,
+  OplogEntry,
+  OplogOp,
+  OrSet,
+  OrSetDot,
+  RemoteConfig,
+  RemoteMode,
+  ReplicaStatus,
+  SchemaVersion,
+  Sha256Hex,
+  Snapshot,
+  SnapshotPolicy,
+  TreeNode,
+  TreeNodeKind,
+  Uuid,
+} from "./types.ts";
+
+export {
+  DEFAULT_REMOTE_PREFIX,
+  normalizePrefix,
+} from "./prefix.ts";
+
+export {
+  PROTOCOL_DIR,
+  assetIndexKey,
+  assetItemMetaKey,
+  assetThumbKey,
+  blobKey,
+  clockKey,
+  defaultRemoteConfig,
+  einkConfigKey,
+  einkSummaryKey,
+  kanbanBoardMetaKey,
+  kanbanIndexKey,
+  kanbanItemKey,
+  kanbanItemsPrefix,
+  kanbanListKey,
+  kanbanListsPrefix,
+  kanbanWorkspaceMetaKey,
+  libraryMetaKey,
+  libraryTreeKey,
+  lockKey,
+  manifestKey,
+  objectBranchKey,
+  objectBranchesPrefix,
+  objectKey,
+  objectMetaKey,
+  objectSnapshotKey,
+  objectSnapshotsPrefix,
+  oplogKey,
+  protocolRoot,
+} from "./keys.ts";
+
+export { StoreError, isStoreError, type StoreErrorCode } from "./store-error.ts";
+export {
+  MemoryObjectStore,
+  type DeleteOptions,
+  type HeadResult,
+  type ListObject,
+  type ListOptions,
+  type ListResult,
+  type MemoryObjectStoreOptions,
+  type ObjectBody,
+  type ObjectStore,
+  type PutConditions,
+  type PutOptions,
+} from "./store.ts";
+
+export { RemoteError, isRemoteError, type RemoteErrorCode } from "./errors.ts";
+export {
+  LOCK_HEARTBEAT_MS,
+  LOCK_TTL_MS,
+  PROBE_RELATIVE_KEY,
+  probeConditionalWrites,
+  readRemoteLock,
+  withRemoteLock,
+  type LockFnContext,
+  type RemoteLockTarget,
+  type WithRemoteLockOptions,
+} from "./lock.ts";
+
+export {
+  createLibrary,
+  listLibraries,
+  readManifest,
+  renameLibrary,
+} from "./libraries.ts";
+
+export {
+  createBoard,
+  createItem,
+  createList,
+  createWorkspace,
+  DEFAULT_KANBAN_LIST_NAMES,
+  getBoard,
+  getItem,
+  getList,
+  listItems,
+  listLists,
+  listWorkspaces,
+  readKanbanIndex,
+  updateItem,
+  moveItem,
+  type CreateItemInput,
+  type UpdateItemPatch,
+} from "./kanban.ts";
+
+export {
+  createFolder,
+  folderDepth,
+  moveNode,
+  readTree,
+  subtreeIds,
+  wouldCreateCycle,
+} from "./tree.ts";
+
+export { compareHlc, createHlcClock, formatHlcStamp, tickHlc, type HlcClock } from "./hlc.ts";
+export {
+  addToOrSet,
+  emptyOrSet,
+  mergeOrSets,
+  orSetFromTags,
+  removeFromOrSet,
+  valuesOfOrSet,
+} from "./orset.ts";
+export {
+  addNodeTag,
+  applyTagSet,
+  mergeEntityTags,
+  nodesMatchingTags,
+  nodesWithTag,
+  removeNodeTag,
+  tagSetOf,
+  type TagWriteOptions,
+} from "./tags.ts";
+export { sha256Hex } from "./hash.ts";
+export {
+  enqueueImport,
+  flushImportQueue,
+  getObjectMeta,
+  importObjectNow,
+  inferObjectType,
+  type ImportObjectInput,
+  type ImportQueue,
+  type QueuedImport,
+} from "./import.ts";
+
+export {
+  cacheObjectMeta,
+  cacheThumb,
+  createSyncState,
+  enqueueSyncImport,
+  pendingCount,
+  pushSync,
+  setSyncPaused,
+  type PushSyncResult,
+  type SyncJob,
+  type SyncState,
+} from "./sync.ts";
+
+export {
+  CONFLICT_BRANCH_PREFIX,
+  commitSnapshot,
+  conflictBranchName,
+  createBranch,
+  deleteBranch,
+  getBranch,
+  isConflictBranch,
+  listBranches,
+  listConflictBranches,
+  listSnapshots,
+  readBranchBytes,
+  readBranchSnapshot,
+  rollbackBranch,
+  switchDefaultBranch,
+  validateBranchName,
+  type CommitSnapshotOptions,
+} from "./versions.ts";
+
+export {
+  DEFAULT_SNAPSHOT_POLICY,
+  createAutoSnapshotController,
+  createManualClock,
+  type AutoSnapshotResult,
+  type ClockScheduler,
+} from "./auto-snapshot.ts";
+
+export {
+  DEFAULT_ASSET_CACHE_POLICY,
+  PLACEHOLDER_WEBP,
+  addAssetTag,
+  assetsInFolder,
+  assetsMatchingTags,
+  createAssetFolder,
+  createDeviceAssetCache,
+  getAssetMeta,
+  hydrateAssetCache,
+  importAsset,
+  isWebp,
+  listAssetFolders,
+  listAssets,
+  mergeAssetMeta,
+  moveAssetToFolder,
+  pickLwwRating,
+  readPngSize,
+  removeAssetTag,
+  setAssetRating,
+  wouldCreateAssetFolderCycle,
+  type AssetWriteOptions,
+  type DeviceAssetCache,
+  type ImportAssetInput,
+} from "./assets.ts";
+
+export {
+  LOCAL_PIN_STORAGE_KEY,
+  WIFI_ONLY_ORIGINAL,
+  addPin,
+  allowOriginalDownload,
+  defaultOriginalDownloadPolicy,
+  fetchOriginalOnDemand,
+  hasPin,
+  isOriginalPinned,
+  originalCacheKey,
+  parsePins,
+  pinEquals,
+  purgeUnpinnedOriginals,
+  removePin,
+  serializePins,
+  type LocalOriginalCache,
+  type NetworkKind,
+  type OriginalDownloadPolicy,
+  type OriginalRef,
+  type Pin,
+  type PinScope,
+} from "./pin.ts";
+
+export {
+  ARTSTOCK_ASSET_PREFIX,
+  artstockAssetUrl,
+  htmlToMarkdown,
+  insertAssetEmbed,
+  isPublicNetworkUrl,
+  markdownToHtml,
+  markdownToc,
+  parseArtstockAssetId,
+  resolveMarkdownMediaSrc,
+  slugifyHeading,
+  type TocEntry,
+} from "./markdown.ts";
+
+export {
+  countPdfPages,
+  createPdfViewer,
+  encodeMinimalPdf,
+  extractPdfPageText,
+  goToPdfPage,
+  isPdfName,
+  loadPdfOriginal,
+  pickLwwPageCount,
+  preparePdfViewer,
+  writeObjectPageCount,
+  type PdfViewer,
+  type PdfWriteOptions,
+} from "./pdf.ts";
+
+export {
+  LOCAL_ASSET_SEARCH_KEY,
+  createAssetSearchIndex,
+  parseFtsQuery,
+  rebuildAssetSearchIndex,
+  removeAssetSearchDoc,
+  searchAssetIndex,
+  searchAssets,
+  tokenizeSearchText,
+  upsertAssetSearchDoc,
+  type AssetSearchDoc,
+  type AssetSearchIndex,
+  type AssetSearchKind,
+} from "./search.ts";
+
+export {
+  addMindChild,
+  createMindDoc,
+  createMindNode,
+  encodeMindDoc,
+  findMindNode,
+  isMindmapName,
+  parseMindDoc,
+  removeMindNode,
+  setMindNodeText,
+  validateMindDoc,
+  type MindDoc,
+  type MindNode,
+} from "./mindmap.ts";
+
+export {
+  addDatabaseColumn,
+  addDatabaseRow,
+  applyCellChoice,
+  createDatabaseDoc,
+  databaseUsesSqlite,
+  diffDatabaseCells,
+  encodeDatabaseDoc,
+  isDatabaseName,
+  liveColumns,
+  liveRows,
+  loadDatabase,
+  mergeDatabaseDocs,
+  parseDatabaseDoc,
+  saveDatabase,
+  setDatabaseCell,
+  tombstoneDatabaseRow,
+  type CellConflict,
+  type ColumnType,
+  type DatabaseColumn,
+  type DatabaseDoc,
+  type DatabaseRow,
+} from "./database.ts";
+
+export {
+  conflictBadgeCount,
+  countUnresolvedConflicts,
+  resolveConflictBranch,
+  type ConflictAction,
+  type ResolveConflictOptions,
+} from "./conflicts.ts";
+
+export {
+  DEFAULT_EINK_CONFIG,
+  EINK_SUMMARY_MAX_BYTES,
+  assertEinkNoSecrets,
+  buildEinkSummary,
+  defaultEinkConfig,
+  einkJsonHasSecrets,
+  fetchEinkForFirmware,
+  readEinkConfig,
+  readEinkSummary,
+  refreshEinkSummary,
+  writeEinkConfig,
+  writeEinkSummary,
+} from "./eink.ts";
+
+export {
+  replicateObject,
+  sortRemotesById,
+  withOrderedRemoteLocks,
+  type NamedRemote,
+} from "./replicate.ts";

@@ -35,7 +35,7 @@
       "id": "F-001",
       "name": "core 类型与对象键生成",
       "phase": "P0",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-000"],
       "apps": ["core"],
       "designDoc": "docs/02-storage-protocol.md",
@@ -51,7 +51,7 @@
       "id": "F-002",
       "name": "S3 适配接口 + mock 实现",
       "phase": "P0",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-001"],
       "apps": ["core", "web"],
       "designDoc": "docs/03-features/01-remotes.md",
@@ -66,7 +66,7 @@
       "id": "F-003",
       "name": "全局写锁 withRemoteLock",
       "phase": "P0",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-002"],
       "apps": ["core"],
       "designDoc": "docs/02-storage-protocol.md",
@@ -84,7 +84,7 @@
       "id": "F-004",
       "name": "Web：远端配置、探测、list/get、受控 PUT",
       "phase": "P0",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-003"],
       "apps": ["web"],
       "designDoc": "docs/03-features/14-web.md",
@@ -95,13 +95,13 @@
         "list/get 成功；PUT 前后能观察到 lock.json",
         "密钥不进构建产物"
       ],
-      "notes": ""
+      "notes": "Vite SPA；探测失败改只读。list/get/受控 PUT 以 MemoryObjectStore 验证 lock.json。真实 HTTP 签名仍为 S3 stub。空密钥不请求桶。"
     },
     {
       "id": "F-005",
       "name": "Tauri 空壳：desktop + Android 目标声明",
       "phase": "P0",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-000"],
       "apps": ["desktop", "android"],
       "designDoc": "docs/03-features/15-desktop.md",
@@ -110,13 +110,13 @@
         "desktop 与 mobile 分 capabilities",
         "Windows 或 macOS 上 tauri dev 能开空窗加载 webview"
       ],
-      "notes": "本项不要求 Android 真机跑通业务。"
+      "notes": "lib.rs mobile_entry_point; desktop/mobile capabilities; Android 目标在 tauri.android.conf.json。空窗已在 Linux 桌面会话验证 webview。不要求 Android 真机业务。"
     },
     {
       "id": "F-010",
       "name": "资料库 CRUD 与 manifest",
       "phase": "P1",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-004"],
       "apps": ["web", "desktop", "core"],
       "designDoc": "docs/03-features/02-libraries.md",
@@ -125,13 +125,13 @@
         "写入走锁并更新 manifest.json",
         "另一客户端拉到同一列表"
       ],
-      "notes": ""
+      "notes": "create/rename/list via withRemoteLock; two clients share mock S3."
     },
     {
       "id": "F-011",
       "name": "多层文件夹树",
       "phase": "P1",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-010"],
       "apps": ["web", "desktop", "core"],
       "designDoc": "docs/03-features/02-libraries.md",
@@ -140,13 +140,13 @@
         "拖拽或移动不丢子节点、不产生环",
         "tree.json 持锁提交"
       ],
-      "notes": ""
+      "notes": "createFolder/moveNode; cycle rejected; tree.json If-Match under withRemoteLock."
     },
     {
       "id": "F-012",
       "name": "文件导入与 object meta",
       "phase": "P1",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-011"],
       "apps": ["web", "desktop"],
       "designDoc": "docs/03-features/02-libraries.md",
@@ -155,13 +155,13 @@
         "类型至少区分 binary 与后续扩展点",
         "离线入队、上线持锁上传"
       ],
-      "notes": ""
+      "notes": "importObjectNow/flushImportQueue via withRemoteLock purpose upload; blob by sha256; inferObjectType extension point; offline queue restores on failure."
     },
     {
       "id": "F-013",
       "name": "文件夹与文件标签",
       "phase": "P1",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-012"],
       "apps": ["web", "desktop", "core"],
       "designDoc": "docs/03-features/02-libraries.md",
@@ -169,13 +169,13 @@
         "打标签、按标签筛选",
         "合并遵循 OR-Set（单测）"
       ],
-      "notes": ""
+      "notes": "OR-Set add/remove with HLC; delete wins earlier add; addNodeTag/removeNodeTag under withRemoteLock; filter AND of tags."
     },
     {
       "id": "F-014",
       "name": "桌面接入同一 core（IPC + 本地缓存目录）",
       "phase": "P1",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-005", "F-010"],
       "apps": ["desktop"],
       "designDoc": "docs/03-features/15-desktop.md",
@@ -183,13 +183,13 @@
         "桌面与 Web 对同一远端看到同一库列表",
         "密钥走安全存储 command 而非明文 json"
       ],
-      "notes": ""
+      "notes": "Desktop host.ts uses same listLibraries/createLibrary; secrets via secure_store_* files under app data/secrets (0600), never plaintext JSON config."
     },
     {
       "id": "F-015",
       "name": "元数据与缩略图缓存 + 同步队列",
       "phase": "P1",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-012"],
       "apps": ["web", "desktop", "core"],
       "designDoc": "docs/03-features/05-sync.md",
@@ -198,13 +198,13 @@
         "锁占用时 UI 显示 deviceName 与 TTL，不盲写",
         "状态栏展示待提交条数"
       ],
-      "notes": ""
+      "notes": "pushSync pauses without draining; lock-held returns deviceName+ttlMs and leaves queue; pendingCount status bar. In-memory meta/thumb cache maps."
     },
     {
       "id": "F-020",
       "name": "Tablet shell 横屏/竖屏",
       "phase": "P2",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-000"],
       "apps": ["web", "android"],
       "designDoc": "docs/03-features/16-android-pad.md",
@@ -213,13 +213,13 @@
         "触控热区文档要求落实到主要导航",
         "Web 窄屏使用同一壳"
       ],
-      "notes": ""
+      "notes": "packages/ui TabletShell: landscape sidebar / portrait bottom; TOUCH_MIN_PX=44; pickAppShell ≤899px uses the same shell on Web."
     },
     {
       "id": "F-021",
       "name": "Android Keystore 存远端密钥",
       "phase": "P2",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-005", "F-004"],
       "apps": ["android"],
       "designDoc": "docs/03-features/16-android-pad.md",
@@ -227,13 +227,13 @@
         "密钥不在明文 SharedPreferences 裸存",
         "杀进程后仍能读取并连接 OSS"
       ],
-      "notes": ""
+      "notes": "AndroidKeyStore AES-GCM wraps secrets; prefs store ciphertext only. Pixel Tablet AVD API 34 + KVM: force-stop then get-hash and OssProbe GET mock S3 (adb reverse) oss-ok. NDK 27.2.12479018, gen/android committed."
     },
     {
       "id": "F-022",
       "name": "Android 沙箱 SQLite 与缓存目录",
       "phase": "P2",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-021", "F-015"],
       "apps": ["android"],
       "designDoc": "docs/03-features/16-android-pad.md",
@@ -241,13 +241,13 @@
         "元数据在应用沙箱 SQLite",
         "可回收缓存与 pinned 目录分开"
       ],
-      "notes": ""
+      "notes": "SandboxStore uses getDatabasePath(metadata.db), cacheDir/blobs vs filesDir/pinned; reclaimCache leaves pinned. Rust sandbox.rs rusqlite on desktop. Emulator KeystoreSecretsTest+SandboxStoreTest passed."
     },
     {
       "id": "F-023",
       "name": "Pad 真机通路：OSS 浏览与上传",
       "phase": "P2",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-020", "F-022", "F-010"],
       "apps": ["android"],
       "designDoc": "docs/03-features/16-android-pad.md",
@@ -256,13 +256,13 @@
         "上传走全局锁",
         "不以仅打开 GitHub Pages 代替本项"
       ],
-      "notes": ""
+      "notes": "Pad APK WebView: S3ObjectStore + withRemoteLock put; Keystore via nativeAttach (not ndk-context). Pixel Tablet API 34: configure OSS, list Pad库, lockSeenDuringPut. Secrets not in localStorage/status."
     },
     {
       "id": "F-030",
       "name": "素材库导入与缩略图",
       "phase": "P3",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-012"],
       "apps": ["web", "desktop"],
       "designDoc": "docs/03-features/04-assets.md",
@@ -271,43 +271,46 @@
         "桌面生成 thumb.webp 并持锁上传",
         "默认不同步原图到所有设备磁盘"
       ],
-      "notes": ""
+      "notes": "importAsset via withRemoteLock writes blobs + assets/items/{id}/meta.json + thumb.webp; DEFAULT_ASSET_CACHE_POLICY.cacheOriginals=false; desktop generateThumbWebp/thumb_generate."
     },
     {
       "id": "F-031",
       "name": "素材文件夹、标签、评分",
       "phase": "P3",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-030"],
       "apps": ["web", "desktop"],
       "designDoc": "docs/03-features/04-assets.md",
-      "acceptance": ["文件夹树", "标签筛选", "评分 0-5 LWW"]
+      "acceptance": ["文件夹树", "标签筛选", "评分 0-5 LWW"],
+      "notes": "Asset folders in assets/index.json; addAssetTag OR-Set; setAssetRating 0-5 LWW via ratingHlc; mergeAssetMeta unions tags and later HLC rating. Writes via withRemoteLock."
     },
     {
       "id": "F-032",
       "name": "素材检索索引（SQLite FTS / MiniSearch）",
       "phase": "P3",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-031"],
       "apps": ["web", "desktop"],
       "designDoc": "docs/03-features/04-assets.md",
-      "acceptance": ["按名称与标签搜索返回正确子集"]
+      "acceptance": ["按名称与标签搜索返回正确子集"],
+      "notes": "Local MiniSearch inverted index over name+tags (prefix AND). Desktop sqliteQueryAssets uses FTS5 MATCH (AND; prefix via *). Index is local only, never written to S3."
     },
     {
       "id": "F-033",
       "name": "Pad 系统分享导入素材/收件箱",
       "phase": "P3",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-023", "F-030"],
       "apps": ["android"],
       "designDoc": "docs/03-features/16-android-pad.md",
-      "acceptance": ["从其它 App 分享一张图可进入收件箱或素材库"]
+      "acceptance": ["从其它 App 分享一张图可进入收件箱或素材库"],
+      "notes": "ACTION_SEND image/* → filesDir/inbox; Pad UI archives via importAsset/withRemoteLock. Pixel Tablet e2e: from-gallery.png importedTo assets. Secrets omitted from e2e JSON."
     },
     {
       "id": "F-040",
       "name": "手动 snapshot 与历史回滚",
       "phase": "P4",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-012"],
       "apps": ["web", "desktop", "core"],
       "designDoc": "docs/03-features/03-artwork-versions.md",
@@ -316,33 +319,35 @@
         "回滚只改分支指针不删历史",
         "blob 不可变"
       ],
-      "notes": ""
+      "notes": "commitSnapshot/rollbackBranch via withRemoteLock; rollback only If-Match branch pointer; blobs never overwritten."
     },
     {
       "id": "F-041",
       "name": "桌面文件监视自动快照",
       "phase": "P4",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-040", "F-014"],
       "apps": ["desktop"],
       "designDoc": "docs/03-features/15-desktop.md",
-      "acceptance": ["auto-on-save 下保存监视文件产生 snapshot", "minIntervalMs 防抖生效"]
+      "acceptance": ["auto-on-save 下保存监视文件产生 snapshot", "minIntervalMs 防抖生效"],
+      "notes": "SnapshotPolicy default auto-on-save/5000ms; createAutoSnapshotController debounce then commitSnapshot via withRemoteLock; desktop createDesktopFileWatch + Rust watch_start/stop poll mtime. Tests use fake clock, no OS watcher required."
     },
     {
       "id": "F-042",
       "name": "命名分支 CRUD 与切换",
       "phase": "P4",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-040"],
       "apps": ["web", "desktop", "core"],
       "designDoc": "docs/03-features/03-artwork-versions.md",
-      "acceptance": ["从当前 snapshot 建分支", "在 alt 上 commit 不影响 main 指针"]
+      "acceptance": ["从当前 snapshot 建分支", "在 alt 上 commit 不影响 main 指针"],
+      "notes": "Named pointers via createBranch/listBranches/switchDefaultBranch/deleteBranch; validateBranchName [A-Za-z0-9._/-]+ ≤64; commitSnapshot on alt does not If-Match-update main."
     },
     {
       "id": "F-043",
       "name": "同分支分叉生成 conflict 分支",
       "phase": "P4",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-042"],
       "apps": ["core"],
       "designDoc": "docs/02-storage-protocol.md",
@@ -350,13 +355,13 @@
         "单测：两设备同一分支不同 parent → conflict/{deviceId}-{hlc}",
         "远端原分支不被覆盖"
       ],
-      "notes": ""
+      "notes": "commitSnapshot expectedParentSnapshotId: if remote tip differs, PUT snapshot+conflict/{deviceId}-{ts.c} under withRemoteLock and leave original branch pointer unchanged."
     },
     {
       "id": "F-044",
       "name": "钉选范围、按需取回、清理未钉选",
       "phase": "P4",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-015"],
       "apps": ["web", "desktop", "android"],
       "designDoc": "docs/03-features/05-sync.md",
@@ -365,33 +370,35 @@
         "未钉选无原文件有缩略图/元数据",
         "清理后仍能从远端打开"
       ],
-      "notes": ""
+      "notes": "Local Pin list (library/folder/object/asset) in art-stock.pins; never written as protocol keys. fetchOriginalOnDemand GET blob; purgeUnpinnedOriginals drops local originals only."
     },
     {
       "id": "F-045",
       "name": "Pad 收件箱扫描代替 file watch",
       "phase": "P4",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-033", "F-040"],
       "apps": ["android"],
       "designDoc": "docs/03-features/16-android-pad.md",
-      "acceptance": ["前台扫描或手动刷新发现新文件并按策略 snapshot"]
+      "acceptance": ["前台扫描或手动刷新发现新文件并按策略 snapshot"],
+      "notes": "Pad scan imports new inbox files then commitSnapshot on size change via withRemoteLock (auto-on-save; manual skips). State in filesDir/inbox-scan.json. Pixel Tablet: imported=1 then snapshotted=1; secrets omitted from e2e JSON."
     },
     {
       "id": "F-046",
       "name": "仅 Wi-Fi 下载原文件（Pad 默认开）",
       "phase": "P4",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-023", "F-044"],
       "apps": ["android"],
       "designDoc": "docs/03-features/16-android-pad.md",
-      "acceptance": ["蜂窝网络下原图下载被拦截，元数据浏览仍可用"]
+      "acceptance": ["蜂窝网络下原图下载被拦截，元数据浏览仍可用"],
+      "notes": "fetchOriginalOnDemand wifiOnly default on Pad; cellular throws WIFI_ONLY; listAssets still works. Pixel Tablet e2e simulated cellular via pad-wifi-e2e.json (no secrets)."
     },
     {
       "id": "F-050",
       "name": "Markdown WYSIWYG、TOC、插入素材",
       "phase": "P5",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-012", "F-030"],
       "apps": ["web", "desktop", "android"],
       "designDoc": "docs/03-features/06-markdown.md",
@@ -400,33 +407,35 @@
         "TOC 跳转",
         "artstock://asset/{id} 不发公网"
       ],
-      "notes": ""
+      "notes": "markdownToHtml/htmlToMarkdown + TOC; artstock://asset resolved only via local resolver (rejects http). WYSIWYG contenteditable saves md blob through commitSnapshot/withRemoteLock."
     },
     {
       "id": "F-051",
       "name": "PDF 翻页查看",
       "phase": "P5",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-012"],
       "apps": ["web", "desktop", "android"],
       "designDoc": "docs/03-features/07-pdf.md",
-      "acceptance": ["≥2 页 PDF 翻页正确", "未钉选点开再拉文件"]
+      "acceptance": ["≥2 页 PDF 翻页正确", "未钉选点开再拉文件"],
+      "notes": "preparePdfViewer reads snapshot/meta only; loadPdfOriginal GETs blob; optional pageCount LWW via withRemoteLock. Web iframe+#page + Pad swipe (left-edge reserved). Desktop host uses the same core APIs."
     },
     {
       "id": "F-052",
       "name": "思维导图编辑与 JSON blob",
       "phase": "P5",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-012"],
       "apps": ["web", "desktop", "android"],
       "designDoc": "docs/03-features/08-mindmap.md",
-      "acceptance": ["三层节点重开一致", "存盘为文档规定 JSON 而非私有二进制"]
+      "acceptance": ["三层节点重开一致", "存盘为文档规定 JSON 而非私有二进制"],
+      "notes": "MindDoc schemaVersion=1 JSON blob via commitSnapshot/withRemoteLock. Concurrent edits keep both JSON on conflict/* . Web nested editor; desktop parseMindDocOnDesktop."
     },
     {
       "id": "F-060",
       "name": "看板 Workspace 与 Board",
       "phase": "P6",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-003"],
       "apps": ["web", "desktop", "android", "core"],
       "designDoc": "docs/03-features/10-kanban.md",
@@ -435,13 +444,13 @@
         "Board 只属于一个 Workspace",
         "index.json 可供侧栏"
       ],
-      "notes": ""
+      "notes": "createWorkspace/createBoard via withRemoteLock; kanban/index.json lists workspaces and boardIds."
     },
     {
       "id": "F-061",
       "name": "看板 List 与 Item CRUD",
       "phase": "P6",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-060"],
       "apps": ["web", "desktop", "android", "core"],
       "designDoc": "docs/03-features/10-kanban.md",
@@ -450,23 +459,24 @@
         "Item 含标题、描述、截止、清单、标签、封面素材、附件 object",
         "对象按层拆分存储"
       ],
-      "notes": ""
+      "notes": "createBoard seeds 待办/进行中/完成; lists under boards/{id}/lists/; items under kanban/items/; withRemoteLock."
     },
     {
       "id": "F-062",
       "name": "看板拖拽改 listId/order",
       "phase": "P6",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-061"],
       "apps": ["web", "desktop", "android"],
       "designDoc": "docs/03-features/10-kanban.md",
-      "acceptance": ["列间拖动刷新后仍正确", "Pad 为横向滑列 + 全屏详情"]
+      "acceptance": ["列间拖动刷新后仍正确", "Pad 为横向滑列 + 全屏详情"],
+      "notes": "moveItem under withRemoteLock; HTML5 drop between lists; CSS snap + full-screen detail under 720px."
     },
     {
       "id": "F-063",
       "name": "多维数据表（JSON+oplog，非 S3 上的 SQLite）",
       "phase": "P6",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-012"],
       "apps": ["web", "desktop", "android", "core"],
       "designDoc": "docs/03-features/09-database.md",
@@ -476,23 +486,24 @@
         "同单元格比较后选边",
         "S3 无该库的 sqlite 真源"
       ],
-      "notes": ""
+      "notes": "DatabaseDoc JSON snapshot + global oplog upserts via withRemoteLock. Row LWW; cell compare picks local/remote. Keys never include .sqlite."
     },
     {
       "id": "F-064",
       "name": "冲突处理 UI",
       "phase": "P6",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-043"],
       "apps": ["web", "desktop", "android"],
       "designDoc": "docs/03-features/11-conflicts.md",
-      "acceptance": ["徽章计数", "采用远端 / 采用本地 / 保留双方"]
+      "acceptance": ["徽章计数", "采用远端 / 采用本地 / 保留双方"],
+      "notes": "resolveConflictBranch via withRemoteLock: adopt-remote deletes conflict/*; adopt-local moves main pointer; keep-both renames. Snapshots/blobs retained. Web badge + Pad 保留双方."
     },
     {
       "id": "F-070",
       "name": "桌面插件宿主与示例插件",
       "phase": "P7",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-012"],
       "apps": ["desktop"],
       "designDoc": "docs/03-features/12-plugins.md",
@@ -502,13 +513,13 @@
         "插件读不到密钥",
         "Pad/Web 无第三方插件时内置类型正常"
       ],
-      "notes": ""
+      "notes": "Desktop PluginHost loads manifest only; writeBlob=commitSnapshot/withRemoteLock. API frozen without secrets. Pad allowThirdParty=false skips third-party. Fixture com.example.pub .vpub."
     },
     {
       "id": "F-071",
       "name": "MCP stdio tools",
       "phase": "P7",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-050", "F-061"],
       "apps": ["desktop", "mcp"],
       "designDoc": "docs/03-features/13-mcp.md",
@@ -517,13 +528,13 @@
         "返回值无密钥",
         "写操作走锁"
       ],
-      "notes": "仅桌面"
+      "notes": "packages/mcp callMcpTool + JSON-RPC tools/list|call. Writes via withRemoteLock. list_remotes omits secrets. artstock-mcp NDJSON stdio."
     },
     {
       "id": "F-080",
       "name": "subtree 拉取上游固件并刷机验证启动",
       "phase": "P8",
-      "status": "todo",
+      "status": "blocked",
       "dependsOn": [],
       "apps": ["eink"],
       "designDoc": "docs/03-features/17-eink.md",
@@ -534,13 +545,13 @@
         "未删 board 驱动与 RawDraw",
         "未新建平行 firmware 工程"
       ],
-      "notes": "本项未完成前禁止改驱动或换 UI 框架。"
+      "notes": "无墨水屏、无刷机线，无法验证 RawDraw 亮屏。未亮屏前不准删驱动或换框架。软件功能已完成，剩余仅本项与 F-082 硬件 blocked。"
     },
     {
       "id": "F-081",
       "name": "客户端持锁写 eink config 与 summary",
       "phase": "P8",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-010", "F-061", "F-003"],
       "apps": ["web", "desktop", "android"],
       "designDoc": "docs/02-storage-protocol.md",
@@ -550,13 +561,13 @@
         "不含密钥",
         "PUT 在持锁窗口内"
       ],
-      "notes": ""
+      "notes": "writeEinkConfig/refreshEinkSummary use purpose eink-summary. Firmware fetchEinkForFirmware GETs only those two keys (no List, no lock). F-080 remains blocked (no hardware flash)."
     },
     {
       "id": "F-082",
       "name": "固件 S3 GET 与 art-stock 页面",
       "phase": "P8",
-      "status": "todo",
+      "status": "blocked",
       "dependsOn": ["F-080", "F-081"],
       "apps": ["eink"],
       "designDoc": "docs/03-features/17-eink.md",
@@ -568,13 +579,13 @@
         "断网显示缓存、不崩溃",
         "只加 RawDraw 页面"
       ],
-      "notes": ""
+      "notes": "依赖 F-080 刷机亮屏。无墨水屏硬件，不假装完成、不刷假机。F-081 客户端写 config/summary 已 done。"
     },
     {
       "id": "F-090",
       "name": "多远端复制（按 remoteId 排序加锁）",
       "phase": "P9",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-015", "F-003"],
       "apps": ["desktop", "core"],
       "designDoc": "docs/02-storage-protocol.md",
@@ -583,13 +594,13 @@
         "OSS 新对象可补到 NAS",
         "replicas 字段更新"
       ],
-      "notes": ""
+      "notes": "withOrderedRemoteLocks sorts remoteId then nests withRemoteLock(purpose replicate). replicateObject copies object graph+blob and sets replicas ok/pending."
     },
     {
       "id": "F-091",
       "name": "GitHub Pages 发布与 CORS 文档验证",
       "phase": "P9",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-004"],
       "apps": ["web"],
       "designDoc": "docs/03-features/14-web.md",
@@ -598,13 +609,13 @@
         "CORS 说明含锁条件头",
         "未配 CORS 时错误可读"
       ],
-      "notes": ""
+      "notes": "pages.yml builds apps/web with PAGES_BASE, no secrets.*. corsExampleJson includes If-Match/If-None-Match/x-oss-forbid-overwrite. Failed to fetch shows cors-error, not a blank page."
     },
     {
       "id": "F-092",
       "name": "Android SAF 授权目录与后台尽力同步",
       "phase": "P9",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-045"],
       "apps": ["android"],
       "designDoc": "docs/03-features/16-android-pad.md",
@@ -613,7 +624,7 @@
         "充电+Wi-Fi 时尽力同步有文档化限制",
         "系统回收缓存不影响 pinned"
       ],
-      "notes": ""
+      "notes": "SAF OpenDocumentTree + persistable URI; revoke clears grant so scan copied=0. WorkManager charging+UNMETERED copies into inbox only, never withRemoteLock. Pixel Tablet e2e: copied=1 then copiedAfterRevoke=0; filesDir/pinned/keep.bin survived reclaim_cache. Secrets omitted."
     }
   ]
 }

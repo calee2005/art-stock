@@ -1,0 +1,14 @@
+{
+  "id": "com.example.pub",
+  "name": "虚拟出版物",
+  "version": "0.1.0",
+  "apiVersion": 1,
+  "fileTypes": [
+    {
+      "typeId": "publication",
+      "extensions": [".vpub"],
+      "mime": "application/x-vpub"
+    }
+  ],
+  "entry": "index.js"
+}

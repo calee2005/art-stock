@@ -4,14 +4,23 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node -e \"console.log('web placeholder; Vite SPA lands in F-004')\"",
-    "build": "node -e \"process.exit(0)\"",
-    "lint": "node -e \"process.exit(0)\"",
-    "test": "node -e \"process.exit(0)\""
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "node --experimental-strip-types --test src/session.test.ts src/cors.test.ts src/pad-host.test.ts"
   },
   "dependencies": {
     "@art-stock/core": "workspace:*",
     "@art-stock/s3": "workspace:*",
-    "@art-stock/ui": "workspace:*"
+    "@art-stock/ui": "workspace:*",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.2",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.5"
   }
 }

@@ -1,2 +1,7 @@
-/** S3 adapter (path-style / virtual-hosted, conditional writes). Implementation lands in F-002. */
-export {};
+export { S3ObjectStore, parseListXml } from "./client.ts";
+export { signAwsV4, sha256Hex, type SignRequestInput } from "./sign.ts";
+export {
+  addressingStyle,
+  objectUrl,
+  type ObjectUrlInput,
+} from "./url.ts";

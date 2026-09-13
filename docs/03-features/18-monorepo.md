@@ -26,7 +26,7 @@ pnpm workspace + Turbo 管 TS 应用；Cargo workspace 管 Rust；固件独立 E
 
 固件：`apps/eink/firmware` 内 `idf.py build flash monitor`（以上游为准）。
 
-Android：`pnpm tauri android dev`（名称以实现为准，文档同步）。
+Android：`cd apps/desktop && pnpm exec tauri android init --ci`（工程在 `src-tauri/gen/android`）；`pnpm exec tauri android build --debug --target x86_64 --apk --ci`。JDK 21、NDK 27.2.12479018、SDK 34/36。
 
 ## CI
 

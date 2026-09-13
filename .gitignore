@@ -9,6 +9,8 @@ dist/
 
 # Rust
 target/
+apps/desktop/src-tauri/gen/apple/
+apps/desktop/src-tauri/gen/schemas/
 
 # Env and secrets — never commit keys or credentials
 .env
