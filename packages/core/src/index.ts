@@ -201,6 +201,7 @@ export {
   listConflictBranches,
   listSnapshots,
   readBranchBytes,
+  readBranchSnapshot,
   rollbackBranch,
   switchDefaultBranch,
   validateBranchName,
@@ -272,3 +273,18 @@ export {
   slugifyHeading,
   type TocEntry,
 } from "./markdown.ts";
+
+export {
+  countPdfPages,
+  createPdfViewer,
+  encodeMinimalPdf,
+  extractPdfPageText,
+  goToPdfPage,
+  isPdfName,
+  loadPdfOriginal,
+  pickLwwPageCount,
+  preparePdfViewer,
+  writeObjectPageCount,
+  type PdfViewer,
+  type PdfWriteOptions,
+} from "./pdf.ts";

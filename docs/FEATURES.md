@@ -4,7 +4,7 @@ Agent 以 [FEATURES.json](FEATURES.json) 为任务源，本文件为可读勾选
 
 领取规则见 [AGENTS.md](../AGENTS.md)。阶段说明见 [04-roadmap.md](04-roadmap.md)。
 
-当前进度：P0 已完成；P1 **F-010**–**F-015** 已完成；P4 **F-040** 已完成；P6 **F-060**–**F-062** 已完成。完成一项后请同步改 JSON 的 `status`，并把下面相应行改为 `[x]`。
+当前进度：P0 已完成；P1 **F-010**–**F-015** 已完成；P4 **F-040**–**F-044** 已完成；P5 **F-050**–**F-051** 已完成；P6 **F-060**–**F-062** 已完成。完成一项后请同步改 JSON 的 `status`，并把下面相应行改为 `[x]`。
 
 ## P0 骨架
 
@@ -51,7 +51,7 @@ Agent 以 [FEATURES.json](FEATURES.json) 为任务源，本文件为可读勾选
 ## P5 创作工具
 
 - [x] **F-050** Markdown WYSIWYG / TOC / 素材 — [06-markdown](03-features/06-markdown.md)
-- [ ] **F-051** PDF 翻页 — [07-pdf](03-features/07-pdf.md)
+- [x] **F-051** PDF 翻页 — [07-pdf](03-features/07-pdf.md)
 - [ ] **F-052** 思维导图 JSON — [08-mindmap](03-features/08-mindmap.md)
 
 ## P6 项目工具

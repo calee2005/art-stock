@@ -64,6 +64,8 @@ export type ObjectMeta = {
   updatedAt: Iso8601;
   defaultBranch: string;
   replicas?: Record<string, ReplicaStatus>;
+  pageCount?: number;
+  pageCountHlc?: Hlc;
 };
 
 export type BranchPointer = {

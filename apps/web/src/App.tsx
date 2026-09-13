@@ -41,6 +41,14 @@ import {
   htmlToMarkdown,
   markdownToc,
   insertAssetEmbed,
+  encodeMinimalPdf,
+  extractPdfPageText,
+  goToPdfPage,
+  isPdfName,
+  loadPdfOriginal,
+  preparePdfViewer,
+  writeObjectPageCount,
+  type PdfViewer,
   assetThumbKey,
   importAsset,
   listAssets,
@@ -161,6 +169,9 @@ export function App() {
   const [mdSource, setMdSource] = useState("");
   const [mdHtml, setMdHtml] = useState("");
   const [mdEditorKey, setMdEditorKey] = useState(0);
+  const [pdfViewer, setPdfViewer] = useState<PdfViewer | null>(null);
+  const [pdfZoom, setPdfZoom] = useState(1);
+  const [pdfSwipeX, setPdfSwipeX] = useState<number | null>(null);
   const [pins, setPins] = useState<Pin[]>(() => {
     try {
       const raw = storage.getItem(LOCAL_PIN_STORAGE_KEY);
@@ -176,6 +187,22 @@ export function App() {
     [form.prefix],
   );
   const canWrite = form.mode === "readwrite";
+  const pdfObjectUrl = useMemo(() => {
+    if (!pdfViewer?.bytes) {
+      return null;
+    }
+    return URL.createObjectURL(
+      new Blob([Uint8Array.from(pdfViewer.bytes)], { type: "application/pdf" }),
+    );
+  }, [pdfViewer?.bytes]);
+
+  useEffect(() => {
+    return () => {
+      if (pdfObjectUrl) {
+        URL.revokeObjectURL(pdfObjectUrl);
+      }
+    };
+  }, [pdfObjectUrl]);
 
   useEffect(() => {
     const sync = () =>
@@ -499,6 +526,50 @@ export function App() {
     setMdEditorKey((value) => value + 1);
   }
 
+  async function loadPdfPlaceholder(objectId: string) {
+    const prefix = formToConfig(form).prefix;
+    const store = activeStore(form);
+    const viewer = await preparePdfViewer(store, prefix, objectId);
+    setPdfViewer(viewer);
+    setPdfZoom(1);
+  }
+
+  async function onOpenPdf() {
+    if (!pdfViewer || pdfViewer.bytes) {
+      return;
+    }
+    const prefix = formToConfig(form).prefix;
+    const store = activeStore(form);
+    try {
+      const opened = await loadPdfOriginal(store, prefix, pdfViewer);
+      setPdfViewer(opened);
+      setStatus(
+        `已按需拉取 PDF（${opened.pageCount ?? "?"} 页），查看本身不写远端`,
+      );
+      if (
+        canWrite &&
+        opened.pageCount &&
+        opened.pageCount !== pdfViewer.pageCount
+      ) {
+        await writeObjectPageCount(
+          lockTarget(),
+          opened.objectId,
+          opened.pageCount,
+        );
+        setStatus(`已缓存 pageCount=${opened.pageCount}（持锁 LWW）`);
+      }
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "打开 PDF 失败");
+    }
+  }
+
+  function onPdfPage(page: number) {
+    if (!pdfViewer) {
+      return;
+    }
+    setPdfViewer(goToPdfPage(pdfViewer, page));
+  }
+
   function clearVersionUi() {
     setSnapshots([]);
     setBranches([]);
@@ -506,6 +577,8 @@ export function App() {
     setActiveBranch("main");
     setMdSource("");
     setMdHtml("");
+    setPdfViewer(null);
+    setPdfZoom(1);
   }
 
   async function onCommitSnapshot() {
@@ -956,10 +1029,16 @@ export function App() {
                       if (node.objectId) {
                         void refreshSnapshots(node.objectId);
                         if (/\.(md|markdown)$/i.test(node.name)) {
+                          setPdfViewer(null);
                           void loadMarkdown(node.objectId);
+                        } else if (isPdfName(node.name)) {
+                          setMdSource("");
+                          setMdHtml("");
+                          void loadPdfPlaceholder(node.objectId);
                         } else {
                           setMdSource("");
                           setMdHtml("");
+                          setPdfViewer(null);
                         }
                       } else {
                         clearVersionUi();
@@ -1187,6 +1266,119 @@ export function App() {
                     保存 Markdown
                   </button>
                 </div>
+              ) : isPdfName(
+                  treeNodes.find((node) => node.id === selectedNodeId)?.name ??
+                    "",
+                ) ? (
+                <div
+                  data-testid="pdf-viewer"
+                  onTouchStart={(event) => {
+                    const x = event.changedTouches[0]?.clientX ?? 0;
+                    if (x < 24) {
+                      setPdfSwipeX(null);
+                      return;
+                    }
+                    setPdfSwipeX(x);
+                  }}
+                  onTouchEnd={(event) => {
+                    if (pdfSwipeX == null || !pdfViewer?.bytes) {
+                      setPdfSwipeX(null);
+                      return;
+                    }
+                    const x = event.changedTouches[0]?.clientX ?? pdfSwipeX;
+                    const dx = x - pdfSwipeX;
+                    if (dx <= -40) {
+                      onPdfPage((pdfViewer.currentPage ?? 1) + 1);
+                    } else if (dx >= 40) {
+                      onPdfPage((pdfViewer.currentPage ?? 1) - 1);
+                    }
+                    setPdfSwipeX(null);
+                  }}
+                >
+                  <h3>PDF</h3>
+                  <p>
+                    未钉选先不拉原文件。Pad 滑动翻页（左缘 24px 留给返回）。
+                  </p>
+                  {!pdfViewer?.bytes ? (
+                    <p>
+                      <span data-testid="pdf-placeholder">
+                        未下载原文件（{pdfViewer?.pageCount ?? "?"} 页缓存）
+                      </span>
+                      <button
+                        type="button"
+                        data-testid="pdf-download"
+                        onClick={() => void onOpenPdf()}
+                        disabled={!pdfViewer}
+                      >
+                        下载以查看
+                      </button>
+                    </p>
+                  ) : (
+                    <>
+                      <p>
+                        <button
+                          type="button"
+                          data-testid="pdf-prev"
+                          onClick={() =>
+                            onPdfPage((pdfViewer.currentPage ?? 1) - 1)
+                          }
+                        >
+                          上一页
+                        </button>
+                        <span data-testid="pdf-page-label">
+                          第 {pdfViewer.currentPage} / {pdfViewer.pageCount} 页
+                        </span>
+                        <button
+                          type="button"
+                          data-testid="pdf-next"
+                          onClick={() =>
+                            onPdfPage((pdfViewer.currentPage ?? 1) + 1)
+                          }
+                        >
+                          下一页
+                        </button>
+                        <button
+                          type="button"
+                          data-testid="pdf-zoom-out"
+                          onClick={() =>
+                            setPdfZoom((value) => Math.max(0.5, value - 0.25))
+                          }
+                        >
+                          缩小
+                        </button>
+                        <span>{Math.round(pdfZoom * 100)}%</span>
+                        <button
+                          type="button"
+                          data-testid="pdf-zoom-in"
+                          onClick={() =>
+                            setPdfZoom((value) => Math.min(3, value + 0.25))
+                          }
+                        >
+                          放大
+                        </button>
+                      </p>
+                      <p data-testid="pdf-page-text">
+                        {extractPdfPageText(
+                          pdfViewer.bytes,
+                          pdfViewer.currentPage,
+                        )}
+                      </p>
+                      {pdfObjectUrl ? (
+                        <iframe
+                          title="PDF 预览"
+                          src={`${pdfObjectUrl}#page=${pdfViewer.currentPage}`}
+                          style={{
+                            width: "100%",
+                            minHeight: 360,
+                            border: "1px solid #ccc",
+                            transform: `scale(${pdfZoom})`,
+                            transformOrigin: "top left",
+                          }}
+                        />
+                      ) : null}
+                    </>
+                  )}
+                </div>
               ) : null}
             </section>
           ) : null}
@@ -1278,6 +1470,20 @@ export function App() {
             />
             <button type="button" onClick={() => void onFlushQueue()} disabled={!canWrite}>
               提交离线队列（{importQueue.length}）
+            </button>
+            <button
+              type="button"
+              data-testid="import-sample-pdf"
+              disabled={!canWrite || !selectedLibraryId}
+              onClick={() => {
+                const bytes = encodeMinimalPdf(["Page One", "Page Two"]);
+                const file = new File([bytes], "sample-two-page.pdf", {
+                  type: "application/pdf",
+                });
+                void onPickFile(file);
+              }}
+            >
+              导入示例双页 PDF
             </button>
           </p>
         </section>

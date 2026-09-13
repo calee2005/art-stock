@@ -8,6 +8,7 @@ import {
   listLibraries,
   listSnapshots,
   MemoryObjectStore,
+  encodeMinimalPdf,
 } from "@art-stock/core";
 import {
   createDesktopFileWatch,
@@ -16,6 +17,8 @@ import {
   importAssetOnDesktop,
   listLibrariesOnDesktop,
   loadDesktopRemote,
+  openPdfOnDesktop,
+  preparePdfOnDesktop,
   saveDesktopRemote,
   type SecureStore,
 } from "./host.ts";
@@ -131,4 +134,33 @@ test("desktop import generates webp thumb under lock and does not require cachin
   );
   assert.ok(thumb);
   assert.equal(thumb.contentType, "image/webp");
+});
+
+test("desktop PDF viewer loads blob only on open via the same core protocol", async () => {
+  const store = new MemoryObjectStore();
+  const remote = desktopLockTarget(store, "", "desk-pdf", "desk-pdf");
+  const lib = await createLibrary(remote, "库");
+  const imported = await importObjectNow(remote, {
+    libraryId: lib.id,
+    parentFolderId: null,
+    name: "brief.pdf",
+    bytes: encodeMinimalPdf(["Desk One", "Desk Two"]),
+    type: "pdf",
+    mimeType: "application/pdf",
+  });
+  const blobGets: string[] = [];
+  const origGet = store.get.bind(store);
+  store.get = async (key: string) => {
+    if (key.includes("blobs/")) {
+      blobGets.push(key);
+    }
+    return origGet(key);
+  };
+  const prepared = await preparePdfOnDesktop(store, "", imported.object.id);
+  assert.ok(prepared);
+  assert.equal(prepared.bytes, null);
+  assert.equal(blobGets.length, 0);
+  const opened = await openPdfOnDesktop(store, "", prepared);
+  assert.equal(opened.pageCount, 2);
+  assert.equal(blobGets.length, 1);
 });

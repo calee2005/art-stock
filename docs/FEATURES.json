@@ -409,11 +409,12 @@
       "id": "F-051",
       "name": "PDF 翻页查看",
       "phase": "P5",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-012"],
       "apps": ["web", "desktop", "android"],
       "designDoc": "docs/03-features/07-pdf.md",
-      "acceptance": ["≥2 页 PDF 翻页正确", "未钉选点开再拉文件"]
+      "acceptance": ["≥2 页 PDF 翻页正确", "未钉选点开再拉文件"],
+      "notes": "preparePdfViewer reads snapshot/meta only; loadPdfOriginal GETs blob; optional pageCount LWW via withRemoteLock. Web iframe+#page + Pad swipe (left-edge reserved). Desktop host uses the same core APIs."
     },
     {
       "id": "F-052",

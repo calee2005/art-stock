@@ -6,9 +6,12 @@ import {
   importAsset,
   isWebp,
   listLibraries,
+  loadPdfOriginal,
+  preparePdfViewer,
   type AutoSnapshotResult,
   type ImportAssetInput,
   type ObjectStore,
+  type PdfViewer,
   type RemoteConfig,
   type RemoteLockTarget,
   type SnapshotPolicy,
@@ -148,4 +151,21 @@ export async function importAssetOnDesktop(
     ...job,
     thumbBytes: job.thumbBytes ?? generateThumb(job.bytes),
   });
+}
+
+/** Same PDF protocol as Web: snapshot first, GET blob only on open. */
+export async function preparePdfOnDesktop(
+  store: ObjectStore,
+  prefix: string,
+  objectId: string,
+): Promise<PdfViewer | null> {
+  return preparePdfViewer(store, prefix, objectId);
+}
+
+export async function openPdfOnDesktop(
+  store: ObjectStore,
+  prefix: string,
+  viewer: PdfViewer,
+): Promise<PdfViewer> {
+  return loadPdfOriginal(store, prefix, viewer);
 }

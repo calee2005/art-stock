@@ -121,6 +121,31 @@ export async function readBranchBytes(
   return { bytes: blob.body, snapshot };
 }
 
+export async function readBranchSnapshot(
+  store: ObjectStore,
+  prefix: string,
+  objectId: string,
+  branch?: string,
+): Promise<Snapshot | null> {
+  const metaGot = await store.get(objectMetaKey(prefix, objectId));
+  if (!metaGot) {
+    return null;
+  }
+  const meta = decodeJson(metaGot.body) as ObjectMeta;
+  const branchName = branch ?? meta.defaultBranch;
+  const current = await getBranch(store, prefix, objectId, branchName);
+  if (!current) {
+    return null;
+  }
+  const snapGot = await store.get(
+    objectSnapshotKey(prefix, objectId, current.pointer.snapshotId),
+  );
+  if (!snapGot) {
+    return null;
+  }
+  return decodeJson(snapGot.body) as Snapshot;
+}
+
 export async function listSnapshots(
   store: ObjectStore,
   prefix: string,
