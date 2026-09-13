@@ -11,6 +11,7 @@ import {
   type RemoteConfig,
   type RemoteMode,
 } from "@art-stock/core";
+import { CORS_ERROR_MESSAGE, isCorsFailure } from "./cors.ts";
 
 export const REMOTE_STORAGE_KEY = "art-stock.remote-config";
 export const DEVICE_STORAGE_KEY = "art-stock.device";
@@ -35,7 +36,11 @@ export type RemoteForm = {
 
 export type ProbeResult =
   | { ok: true; protocolRoot: string }
-  | { ok: false; code: "REMOTE_UNSUPPORTED" | "EMPTY_CREDENTIALS"; message: string };
+  | {
+      ok: false;
+      code: "REMOTE_UNSUPPORTED" | "EMPTY_CREDENTIALS" | "CORS";
+      message: string;
+    };
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -130,6 +135,9 @@ export async function probeReadwrite(
         code: "REMOTE_UNSUPPORTED",
         message: "远端不支持条件写，不能作为读写远端",
       };
+    }
+    if (isCorsFailure(error)) {
+      return { ok: false, code: "CORS", message: CORS_ERROR_MESSAGE };
     }
     throw error;
   }

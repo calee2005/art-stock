@@ -18,6 +18,7 @@ import {
   saveRemoteForm,
   type StorageLike,
 } from "./session.ts";
+import { CORS_ERROR_MESSAGE } from "./cors.ts";
 
 function memoryStorage(): StorageLike {
   const data = new Map<string, string>();
@@ -60,6 +61,32 @@ test("probe failure must not be accepted as readwrite", async () => {
   assert.equal(result.ok, false);
   if (!result.ok) {
     assert.equal(result.code, "REMOTE_UNSUPPORTED");
+  }
+});
+
+test("probe maps Failed to fetch to a readable CORS error", async () => {
+  const store = {
+    async get() {
+      throw new TypeError("Failed to fetch");
+    },
+    async head() {
+      throw new TypeError("Failed to fetch");
+    },
+    async put() {
+      throw new TypeError("Failed to fetch");
+    },
+    async delete() {
+      throw new TypeError("Failed to fetch");
+    },
+    async list() {
+      throw new TypeError("Failed to fetch");
+    },
+  };
+  const result = await probeReadwrite(store, "");
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.code, "CORS");
+    assert.equal(result.message, CORS_ERROR_MESSAGE);
   }
 });
 

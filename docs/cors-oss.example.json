@@ -1,0 +1,24 @@
+{
+  "CORSRules": [
+    {
+      "AllowedOrigins": [
+        "https://<user>.github.io",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"
+      ],
+      "AllowedMethods": ["GET", "HEAD", "PUT", "DELETE", "POST"],
+      "AllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "If-Match",
+        "If-None-Match",
+        "x-oss-forbid-overwrite",
+        "x-amz-content-sha256",
+        "x-amz-date",
+        "x-amz-security-token"
+      ],
+      "ExposeHeaders": ["ETag"],
+      "MaxAgeSeconds": 600
+    }
+  ]
+}

@@ -131,6 +131,13 @@ import {
   saveRemoteForm,
   type RemoteForm,
 } from "./session.ts";
+import {
+  CORS_ERROR_MESSAGE,
+  checkBucketCors,
+  corsExampleJson,
+  describeCorsFailure,
+  isCorsFailure,
+} from "./cors.ts";
 
 const storage: Storage = window.localStorage;
 const demoStore = new MemoryObjectStore();
@@ -193,6 +200,8 @@ export function App() {
     () => sessionStorage.getItem("art-stock.xss-ok") === "1",
   );
   const [status, setStatus] = useState("未连接。空密钥不会请求任何桶。");
+  const [corsBlocked, setCorsBlocked] = useState(false);
+  const corsJson = useMemo(() => corsExampleJson(), []);
   const [keys, setKeys] = useState<string[]>([]);
   const [libraries, setLibraries] = useState<{ id: string; name: string }[]>([]);
   const [newLibraryName, setNewLibraryName] = useState("");
@@ -310,18 +319,74 @@ export function App() {
     setStatus("已保存到本机。清除站点数据会丢失密钥。");
   }
 
+  async function withCorsGuard(action: () => Promise<void>): Promise<void> {
+    try {
+      await action();
+    } catch (error) {
+      if (isCorsFailure(error)) {
+        setCorsBlocked(true);
+        setStatus(describeCorsFailure(error));
+        return;
+      }
+      setStatus(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async function onCheckCors() {
+    if (!form.endpoint.trim() || !form.bucket.trim()) {
+      setStatus("请先填写 endpoint 与 bucket，再检查 CORS。空密钥打开站点不会请求用户桶。");
+      return;
+    }
+    const result = await checkBucketCors({
+      endpoint: form.endpoint,
+      bucket: form.bucket,
+      forcePathStyle: form.forcePathStyle,
+    });
+    if (!result.ok && result.cors) {
+      setCorsBlocked(true);
+      setStatus(result.message);
+      return;
+    }
+    if (!result.ok) {
+      setStatus(result.message);
+      return;
+    }
+    setCorsBlocked(false);
+    setStatus("浏览器可读取该桶地址（CORS 已放行，或响应可被当前源读取）。");
+  }
+
   async function probe() {
     if (!hasCredentials(form) && form.mode === "readwrite") {
       setStatus("缺少密钥，未向远端发请求。");
       return;
     }
-    const result = await probeReadwrite(activeStore(form), form.prefix);
-    if (!result.ok) {
-      update("mode", "readonly");
-      setStatus(`${result.message}。已改为只读，禁止当读写远端。`);
-      return;
-    }
-    setStatus(`探测成功，协议根 ${result.protocolRoot}`);
+    await withCorsGuard(async () => {
+      if (hasCredentials(form)) {
+        const cors = await checkBucketCors({
+          endpoint: form.endpoint,
+          bucket: form.bucket,
+          forcePathStyle: form.forcePathStyle,
+        });
+        if (!cors.ok && cors.cors) {
+          setCorsBlocked(true);
+          setStatus(cors.message);
+          return;
+        }
+      }
+      const result = await probeReadwrite(activeStore(form), form.prefix);
+      if (!result.ok) {
+        if (result.code === "CORS") {
+          setCorsBlocked(true);
+          setStatus(result.message);
+          return;
+        }
+        update("mode", "readonly");
+        setStatus(`${result.message}。已改为只读，禁止当读写远端。`);
+        return;
+      }
+      setCorsBlocked(false);
+      setStatus(`探测成功，协议根 ${result.protocolRoot}`);
+    });
   }
 
   async function listKeys() {
@@ -1142,9 +1207,32 @@ export function App() {
           CORS 需放行 If-Match / If-None-Match / x-oss-forbid-overwrite
         </a>
       </p>
+      {corsBlocked ? (
+        <div
+          data-testid="cors-error"
+          role="alert"
+          style={{ background: "#fef2f2", padding: "0.75rem", marginBottom: "0.75rem" }}
+        >
+          <p>{CORS_ERROR_MESSAGE}</p>
+        </div>
+      ) : null}
+      <details open={corsBlocked} data-testid="cors-help">
+        <summary>
+          GitHub Pages CORS 示例（含锁条件头 If-Match / If-None-Match / x-oss-forbid-overwrite）
+        </summary>
+        <pre data-testid="cors-json" style={{ whiteSpace: "pre-wrap", fontSize: 12 }}>
+          {corsJson}
+        </pre>
+        <p>
+          <a href="./cors-oss.example.json">下载 cors-oss.example.json</a>
+        </p>
+      </details>
       <p>
         <button type="button" onClick={() => void probe()}>
           探测条件写
+        </button>
+        <button type="button" data-testid="cors-check" onClick={() => void onCheckCors()}>
+          检查 CORS
         </button>
         <button type="button" onClick={() => void listKeys()}>
           List

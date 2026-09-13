@@ -24,7 +24,17 @@
 
 ## 发布
 
-GitHub Actions 构建 `apps/web` 到 Pages。`base` 路径按仓库名配置。
+GitHub Actions 构建 `apps/web` 到 Pages（`.github/workflows/pages.yml`）。`PAGES_BASE` 按仓库名配置，例如 `/art-stock/`。工作流**不得**注入 `secrets.*` 或 AWS/OSS 密钥；产物用 `assert-dist-no-secrets.mjs` 扫描示例密钥。用户密钥只存在浏览器本机存储。
+
+## CORS
+
+协议 §12。可复制规则见 [cors-oss.example.json](../cors-oss.example.json)（Pages 站点也托管 `cors-oss.example.json`）。必须包含锁条件头：
+
+`If-Match`、`If-None-Match`、`x-oss-forbid-overwrite`
+
+以及 `Authorization`、`Content-Type`、`x-amz-content-sha256`、`x-amz-date`、`x-amz-security-token`。方法：`GET, HEAD, PUT, DELETE, POST`。Expose：`ETag`。AllowedOrigins 填 Pages 源站（如 `https://<user>.github.io`）与本地 `http://localhost:5173`。
+
+未配 CORS 时，探测/HEAD 在浏览器里表现为 `TypeError: Failed to fetch`。Web 必须把它渲染成可读说明 + 上述 JSON，**不得白屏**。客户端不能替用户改 bucket CORS。
 
 ## 验收
 

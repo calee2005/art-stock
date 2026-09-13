@@ -5,9 +5,17 @@ import { dirname, resolve } from "node:path";
 
 const root = dirname(fileURLToPath(import.meta.url));
 
+function pagesBase(): string {
+  const raw = process.env.PAGES_BASE?.trim();
+  if (!raw) {
+    return "./";
+  }
+  return raw.endsWith("/") ? raw : `${raw}/`;
+}
+
 export default defineConfig({
   root,
-  base: "./",
+  base: pagesBase(),
   plugins: [react()],
   resolve: {
     alias: {
