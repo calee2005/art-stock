@@ -426,7 +426,7 @@
       "id": "F-060",
       "name": "看板 Workspace 与 Board",
       "phase": "P6",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-003"],
       "apps": ["web", "desktop", "android", "core"],
       "designDoc": "docs/03-features/10-kanban.md",
@@ -435,7 +435,7 @@
         "Board 只属于一个 Workspace",
         "index.json 可供侧栏"
       ],
-      "notes": ""
+      "notes": "createWorkspace/createBoard via withRemoteLock; kanban/index.json lists workspaces and boardIds."
     },
     {
       "id": "F-061",
