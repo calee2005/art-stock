@@ -490,7 +490,7 @@ export function App() {
       const thumb = await store.get(assetThumbKey(prefix, asset.id));
       if (thumb) {
         thumbs[asset.id] = URL.createObjectURL(
-          new Blob([thumb.body], { type: "image/webp" }),
+          new Blob([Uint8Array.from(thumb.body)], { type: "image/webp" }),
         );
       }
     }
