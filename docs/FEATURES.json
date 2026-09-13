@@ -299,7 +299,7 @@
       "id": "F-033",
       "name": "Pad 系统分享导入素材/收件箱",
       "phase": "P3",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-023", "F-030"],
       "apps": ["android"],
       "designDoc": "docs/03-features/16-android-pad.md",
