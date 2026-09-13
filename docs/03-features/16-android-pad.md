@@ -19,8 +19,15 @@ Pad 与桌面同等优先级，不是缩小窗口。通勤与外出创作的主�
 
 ### 工具链（写入构建说明，实现时锁定版本号）
 
-- JDK 17+、Android SDK、NDK（Tauri 2 文档当时要求的版本）
-- `rustup target add aarch64-linux-android`（模拟器另加 x86_64/i686 如需要）
+锁定（F-021 验证环境）：
+
+- JDK 21、Android SDK Platform 34/36、Build-Tools 34.0.0 / 36.0.0
+- NDK **27.2.12479018**、CMake 3.22.1、Emulator 37.1.11、platform-tools 37.0.1
+- Gradle 8.14.3、Android Gradle Plugin 8.11.0、Kotlin 1.9.25
+- `rustup target add aarch64-linux-android x86_64-linux-android`（模拟器 x86_64）
+- 命令：`cd apps/desktop && pnpm exec tauri android init --ci`（已生成 `src-tauri/gen/android`）；`pnpm exec tauri android build --debug --target x86_64`
+
+密钥：Android Keystore 中的 AES-GCM 主密钥包装 `secretAccessKey` / `accessKeyId`；SharedPreferences 只存密文，禁止明文裸存。
 
 ## 交互与导入
 

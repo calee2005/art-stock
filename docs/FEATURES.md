@@ -4,7 +4,7 @@ Agent 以 [FEATURES.json](FEATURES.json) 为任务源，本文件为可读勾选
 
 领取规则见 [AGENTS.md](../AGENTS.md)。阶段说明见 [04-roadmap.md](04-roadmap.md)。
 
-当前进度：P0 已完成；P1 **F-010**–**F-015** 已完成；P3 **F-030**–**F-032** 已完成；P4 **F-040**–**F-044** 已完成；P5 **F-050**–**F-052** 已完成；P6 **F-060**–**F-064** 已完成；P7 **F-070**–**F-071** 已完成；P8 **F-081** 已完成（**F-080** blocked）；P9 **F-090**–**F-091** 已完成。完成一项后请同步改 JSON 的 `status`，并把下面相应行改为 `[x]`。
+当前进度：P0 已完成；P1 **F-010**–**F-015** 已完成；P2 **F-020**–**F-021** 已完成（**F-080** blocked）；P3 **F-030**–**F-032** 已完成；P4 **F-040**–**F-044** 已完成；P5 **F-050**–**F-052** 已完成；P6 **F-060**–**F-064** 已完成；P7 **F-070**–**F-071** 已完成；P8 **F-081** 已完成（**F-080** blocked）；P9 **F-090**–**F-091** 已完成。完成一项后请同步改 JSON 的 `status`，并把下面相应行改为 `[x]`。
 
 ## P0 骨架
 
@@ -27,7 +27,7 @@ Agent 以 [FEATURES.json](FEATURES.json) 为任务源，本文件为可读勾选
 ## P2 Tablet + Android 通路
 
 - [x] **F-020** Tablet shell 横屏/竖屏 — [16-android-pad](03-features/16-android-pad.md)
-- [ ] **F-021** Android Keystore 存密钥（F-005, F-004）（**blocked**：无 Android SDK/模拟器，无法验证 Keystore 与杀进程后连 OSS）
+- [x] **F-021** Android Keystore 存密钥（F-005, F-004）
 - [ ] **F-022** 沙箱 SQLite 与 pinned/缓存分离（F-021, F-015）
 - [ ] **F-023** Pad 真机：OSS 浏览与上传（F-020, F-022, F-010）
 

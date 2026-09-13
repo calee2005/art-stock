@@ -1,5 +1,7 @@
 //! Art Stock native host. Protocol (keys, lock, merge) stays in `packages/core`.
 
+#[cfg(target_os = "android")]
+mod android_keystore;
 mod secrets;
 mod thumb;
 mod watch;

@@ -1,6 +1,11 @@
+#[cfg(not(target_os = "android"))]
 use std::fs;
+#[cfg(not(target_os = "android"))]
 use std::io::Write;
 use std::path::{Path, PathBuf};
+
+#[cfg(target_os = "android")]
+use crate::android_keystore;
 
 fn sanitize_key(key: &str) -> Result<String, String> {
     if key.is_empty() || key.len() > 128 {
@@ -18,6 +23,7 @@ fn sanitize_key(key: &str) -> Result<String, String> {
     Ok(key.to_string())
 }
 
+#[allow(dead_code)]
 pub fn secrets_dir(app_data: &Path) -> PathBuf {
     app_data.join("secrets")
 }
@@ -28,28 +34,44 @@ pub fn cache_dir(app_data: &Path) -> PathBuf {
 
 pub fn set_secret(app_data: &Path, key: &str, value: &str) -> Result<(), String> {
     let key = sanitize_key(key)?;
-    let dir = secrets_dir(app_data);
-    fs::create_dir_all(&dir).map_err(|err| err.to_string())?;
-    let path = dir.join(key);
-    let mut file = fs::File::create(&path).map_err(|err| err.to_string())?;
-    file.write_all(value.as_bytes())
-        .map_err(|err| err.to_string())?;
-    #[cfg(unix)]
+    #[cfg(target_os = "android")]
     {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&path, fs::Permissions::from_mode(0o600))
-            .map_err(|err| err.to_string())?;
+        let _ = app_data;
+        android_keystore::set(&key, value)
     }
-    Ok(())
+    #[cfg(not(target_os = "android"))]
+    {
+        let dir = secrets_dir(app_data);
+        fs::create_dir_all(&dir).map_err(|err| err.to_string())?;
+        let path = dir.join(key);
+        let mut file = fs::File::create(&path).map_err(|err| err.to_string())?;
+        file.write_all(value.as_bytes())
+            .map_err(|err| err.to_string())?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&path, fs::Permissions::from_mode(0o600))
+                .map_err(|err| err.to_string())?;
+        }
+        Ok(())
+    }
 }
 
 pub fn get_secret(app_data: &Path, key: &str) -> Result<Option<String>, String> {
     let key = sanitize_key(key)?;
-    let path = secrets_dir(app_data).join(key);
-    match fs::read_to_string(path) {
-        Ok(body) => Ok(Some(body)),
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(err) => Err(err.to_string()),
+    #[cfg(target_os = "android")]
+    {
+        let _ = app_data;
+        android_keystore::get(&key)
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let path = secrets_dir(app_data).join(key);
+        match fs::read_to_string(path) {
+            Ok(body) => Ok(Some(body)),
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(err) => Err(err.to_string()),
+        }
     }
 }
 
