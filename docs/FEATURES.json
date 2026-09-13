@@ -548,7 +548,7 @@
       "id": "F-081",
       "name": "客户端持锁写 eink config 与 summary",
       "phase": "P8",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-010", "F-061", "F-003"],
       "apps": ["web", "desktop", "android"],
       "designDoc": "docs/02-storage-protocol.md",
@@ -558,7 +558,7 @@
         "不含密钥",
         "PUT 在持锁窗口内"
       ],
-      "notes": ""
+      "notes": "writeEinkConfig/refreshEinkSummary use purpose eink-summary. Firmware fetchEinkForFirmware GETs only those two keys (no List, no lock). F-080 remains blocked (no hardware flash)."]
     },
     {
       "id": "F-082",
