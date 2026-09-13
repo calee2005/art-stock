@@ -56,7 +56,9 @@ export {
   kanbanBoardMetaKey,
   kanbanIndexKey,
   kanbanItemKey,
+  kanbanItemsPrefix,
   kanbanListKey,
+  kanbanListsPrefix,
   kanbanWorkspaceMetaKey,
   libraryMetaKey,
   libraryTreeKey,
@@ -107,10 +109,20 @@ export {
 
 export {
   createBoard,
+  createItem,
+  createList,
   createWorkspace,
+  DEFAULT_KANBAN_LIST_NAMES,
   getBoard,
+  getItem,
+  getList,
+  listItems,
+  listLists,
   listWorkspaces,
   readKanbanIndex,
+  updateItem,
+  type CreateItemInput,
+  type UpdateItemPatch,
 } from "./kanban.ts";
 
 export {

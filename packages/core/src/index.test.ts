@@ -9,7 +9,9 @@ import {
   kanbanBoardMetaKey,
   kanbanIndexKey,
   kanbanItemKey,
+  kanbanItemsPrefix,
   kanbanListKey,
+  kanbanListsPrefix,
   kanbanWorkspaceMetaKey,
   libraryMetaKey,
   libraryTreeKey,
@@ -163,6 +165,11 @@ test("kanban index / workspace / board / list / item keys", () => {
     kanbanItemKey("art/", item),
     `art/.artstock/v1/kanban/items/${item}.json`,
   );
+  assert.equal(
+    kanbanListsPrefix("", board),
+    `.artstock/v1/kanban/boards/${board}/lists/`,
+  );
+  assert.equal(kanbanItemsPrefix(""), ".artstock/v1/kanban/items/");
 });
 
 test("JSON types serialize camelCase and include schemaVersion", () => {

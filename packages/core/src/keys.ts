@@ -95,11 +95,22 @@ export function kanbanListKey(
   return objectKey(prefix, `kanban/boards/${boardId}/lists/${listId}.json`);
 }
 
+export function kanbanListsPrefix(
+  prefix: string = DEFAULT_REMOTE_PREFIX,
+  boardId: string,
+): string {
+  return objectKey(prefix, `kanban/boards/${boardId}/lists/`);
+}
+
 export function kanbanItemKey(
   prefix: string = DEFAULT_REMOTE_PREFIX,
   itemId: string,
 ): string {
   return objectKey(prefix, `kanban/items/${itemId}.json`);
+}
+
+export function kanbanItemsPrefix(prefix: string = DEFAULT_REMOTE_PREFIX): string {
+  return objectKey(prefix, "kanban/items/");
 }
 
 export function assetIndexKey(prefix: string = DEFAULT_REMOTE_PREFIX): string {

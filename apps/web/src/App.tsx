@@ -24,11 +24,16 @@ import {
   createWorkspace,
   createBoard,
   listWorkspaces,
+  listLists,
+  listItems,
+  createItem,
   type ImportQueue,
   type SyncState,
   type ObjectStore,
   type TreeNode,
   type KanbanIndexWorkspace,
+  type KanbanList,
+  type KanbanItem,
 } from "@art-stock/core";
 import {
   deviceIdentity,
@@ -79,6 +84,17 @@ export function App() {
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState("");
   const [newBoardName, setNewBoardName] = useState("");
+  const [selectedBoardId, setSelectedBoardId] = useState("");
+  const [lists, setLists] = useState<KanbanList[]>([]);
+  const [items, setItems] = useState<KanbanItem[]>([]);
+  const [itemTitle, setItemTitle] = useState("");
+  const [itemDesc, setItemDesc] = useState("");
+  const [itemDue, setItemDue] = useState("");
+  const [itemChecklist, setItemChecklist] = useState("");
+  const [itemLabels, setItemLabels] = useState("");
+  const [itemCover, setItemCover] = useState("");
+  const [itemAttachments, setItemAttachments] = useState("");
+  const [itemListId, setItemListId] = useState("");
   const device = useMemo(() => deviceIdentity(storage), []);
   const preview = useMemo(
     () => protocolRoot(form.prefix),
@@ -377,6 +393,50 @@ export function App() {
     setNewBoardName("");
     setStatus(`已创建 Board ${created.name}`);
     await refreshKanban();
+    await openBoard(created.id);
+  }
+
+  async function openBoard(boardId: string) {
+    setSelectedBoardId(boardId);
+    const prefix = formToConfig(form).prefix;
+    const store = activeStore(form);
+    const nextLists = await listLists(store, prefix, boardId);
+    setLists(nextLists);
+    setItemListId(nextLists[0]?.id ?? "");
+    const listIds = new Set(nextLists.map((list) => list.id));
+    const nextItems = await listItems(store, prefix);
+    setItems(nextItems.filter((item) => listIds.has(item.listId)));
+  }
+
+  async function onCreateItem() {
+    if (!canWrite || !selectedBoardId || !itemListId) {
+      setStatus("请先打开 Board 并选择 List");
+      return;
+    }
+    const created = await createItem(lockTarget(), {
+      boardId: selectedBoardId,
+      listId: itemListId,
+      title: itemTitle,
+      descriptionMarkdown: itemDesc.trim() || undefined,
+      dueAt: itemDue.trim() || undefined,
+      checklist: itemChecklist
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((text) => ({ id: crypto.randomUUID(), text, done: false })),
+      labelIds: itemLabels
+        .split(/[,，\s]+/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+      coverAssetId: itemCover.trim() || undefined,
+      attachmentObjectIds: itemAttachments
+        .split(/[,，\s]+/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+    });
+    setItemTitle("");
+    setStatus(`已创建 Item ${created.title}`);
+    await openBoard(selectedBoardId);
   }
 
   return (
@@ -742,7 +802,18 @@ export function App() {
               {ws.name}
             </button>
             <code>{ws.id.slice(0, 8)}</code>
-            看板 {ws.boardIds.length}
+            {ws.boardIds.map((boardId) => (
+              <button
+                key={boardId}
+                type="button"
+                onClick={() => {
+                  setSelectedWorkspaceId(ws.id);
+                  void openBoard(boardId);
+                }}
+              >
+                Board {boardId.slice(0, 8)}
+              </button>
+            ))}
           </li>
         ))}
       </ul>
@@ -764,6 +835,87 @@ export function App() {
           创建 Board
         </button>
       </form>
+      {selectedBoardId ? (
+        <section>
+          <h3>Board {selectedBoardId.slice(0, 8)}（四层：Workspace → Board → List → Item）</h3>
+          <div style={{ display: "flex", gap: "1rem", overflowX: "auto" }}>
+            {lists.map((list) => (
+              <div key={list.id} style={{ minWidth: 180, border: "1px solid #ccc", padding: "0.5rem" }}>
+                <strong>{list.name}</strong>
+                <ul>
+                  {items
+                    .filter((item) => item.listId === list.id)
+                    .map((item) => (
+                      <li key={item.id}>
+                        {item.title}
+                        {item.dueAt ? ` · ${item.dueAt.slice(0, 10)}` : ""}
+                        {item.coverAssetId ? " · 封面" : ""}
+                        {item.attachmentObjectIds?.length
+                          ? ` · 附件${item.attachmentObjectIds.length}`
+                          : ""}
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void onCreateItem();
+            }}
+          >
+            <label>
+              List
+              <select value={itemListId} onChange={(e) => setItemListId(e.target.value)}>
+                {lists.map((list) => (
+                  <option key={list.id} value={list.id}>
+                    {list.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              标题
+              <input value={itemTitle} onChange={(e) => setItemTitle(e.target.value)} required />
+            </label>
+            <label>
+              描述
+              <input value={itemDesc} onChange={(e) => setItemDesc(e.target.value)} />
+            </label>
+            <label>
+              截止
+              <input
+                type="datetime-local"
+                value={itemDue}
+                onChange={(e) => setItemDue(e.target.value)}
+              />
+            </label>
+            <label>
+              清单（一行一项）
+              <textarea value={itemChecklist} onChange={(e) => setItemChecklist(e.target.value)} />
+            </label>
+            <label>
+              标签 id
+              <input value={itemLabels} onChange={(e) => setItemLabels(e.target.value)} />
+            </label>
+            <label>
+              封面素材 id
+              <input value={itemCover} onChange={(e) => setItemCover(e.target.value)} />
+            </label>
+            <label>
+              附件 object id
+              <input
+                value={itemAttachments}
+                onChange={(e) => setItemAttachments(e.target.value)}
+              />
+            </label>
+            <button type="submit" disabled={!canWrite}>
+              创建 Item
+            </button>
+          </form>
+        </section>
+      ) : null}
       <style>{`
         label { display: block; margin: 0.4rem 0; }
         input[type="text"], input:not([type]), input[type="password"] { width: 100%; }
