@@ -28,6 +28,7 @@ pub fn secrets_dir(app_data: &Path) -> PathBuf {
     app_data.join("secrets")
 }
 
+#[allow(dead_code)]
 pub fn cache_dir(app_data: &Path) -> PathBuf {
     app_data.join("cache")
 }

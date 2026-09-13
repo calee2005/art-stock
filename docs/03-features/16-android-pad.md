@@ -41,7 +41,7 @@ Pad 与桌面同等优先级，不是缩小窗口。通勤与外出创作的主�
 ## 本地存储与同步
 
 - 密钥：Keystore / EncryptedSharedPreferences（Tauri 插件或自写 command）。
-- SQLite 在应用沙箱；缓存目录可被系统回收；**钉选目录不可随意删**（应用私有 `pinned/`）。
+- SQLite 在应用沙箱（`getDatabasePath("metadata.db")` / `filesDir/metadata.sqlite`）；缓存目录用系统 `cacheDir`（可被回收）；**钉选目录**为应用私有 `filesDir/pinned/`，`reclaim_cache` 不得删除。
 - 后台：遵守 Android 限制；同步在前台，或充电+Wi-Fi 时尽力而为。不承诺常驻监视。
 - `deviceId` 独立。写远端走同一把全局锁。
 - 冲突与桌面相同；通勤双开走冲突分支。

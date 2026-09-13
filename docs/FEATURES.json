@@ -233,7 +233,7 @@
       "id": "F-022",
       "name": "Android 沙箱 SQLite 与缓存目录",
       "phase": "P2",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-021", "F-015"],
       "apps": ["android"],
       "designDoc": "docs/03-features/16-android-pad.md",
@@ -241,7 +241,7 @@
         "元数据在应用沙箱 SQLite",
         "可回收缓存与 pinned 目录分开"
       ],
-      "notes": ""
+      "notes": "SandboxStore uses getDatabasePath(metadata.db), cacheDir/blobs vs filesDir/pinned; reclaimCache leaves pinned. Rust sandbox.rs rusqlite on desktop. Emulator KeystoreSecretsTest+SandboxStoreTest passed."
     },
     {
       "id": "F-023",
