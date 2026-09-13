@@ -358,7 +358,7 @@
       "id": "F-044",
       "name": "钉选范围、按需取回、清理未钉选",
       "phase": "P4",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-015"],
       "apps": ["web", "desktop", "android"],
       "designDoc": "docs/03-features/05-sync.md",
@@ -367,7 +367,7 @@
         "未钉选无原文件有缩略图/元数据",
         "清理后仍能从远端打开"
       ],
-      "notes": ""
+      "notes": "Local Pin list (library/folder/object/asset) in art-stock.pins; never written as protocol keys. fetchOriginalOnDemand GET blob; purgeUnpinnedOriginals drops local originals only."
     },
     {
       "id": "F-045",

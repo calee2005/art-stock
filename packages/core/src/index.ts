@@ -221,3 +221,21 @@ export {
   type DeviceAssetCache,
   type ImportAssetInput,
 } from "./assets.ts";
+
+export {
+  LOCAL_PIN_STORAGE_KEY,
+  addPin,
+  fetchOriginalOnDemand,
+  hasPin,
+  isOriginalPinned,
+  originalCacheKey,
+  parsePins,
+  pinEquals,
+  purgeUnpinnedOriginals,
+  removePin,
+  serializePins,
+  type LocalOriginalCache,
+  type OriginalRef,
+  type Pin,
+  type PinScope,
+} from "./pin.ts";

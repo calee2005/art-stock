@@ -39,6 +39,15 @@ import {
   importAsset,
   listAssets,
   PLACEHOLDER_WEBP,
+  LOCAL_PIN_STORAGE_KEY,
+  addPin,
+  fetchOriginalOnDemand,
+  hasPin,
+  originalCacheKey,
+  parsePins,
+  purgeUnpinnedOriginals,
+  removePin,
+  serializePins,
   type ImportQueue,
   type SyncState,
   type ObjectStore,
@@ -49,6 +58,7 @@ import {
   type Snapshot,
   type BranchPointer,
   type AssetItem,
+  type Pin,
 } from "@art-stock/core";
 import {
   TabletShell,
@@ -130,6 +140,15 @@ export function App() {
   }));
   const [pane, setPane] = useState<NavId>("library");
   const [assets, setAssets] = useState<AssetItem[]>([]);
+  const [pins, setPins] = useState<Pin[]>(() => {
+    try {
+      const raw = storage.getItem(LOCAL_PIN_STORAGE_KEY);
+      return raw ? parsePins(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [originalCache] = useState(() => new Map<string, Uint8Array>());
   const device = useMemo(() => deviceIdentity(storage), []);
   const preview = useMemo(
     () => protocolRoot(form.prefix),
@@ -243,6 +262,11 @@ export function App() {
     );
     setStatus(`已重命名为 ${updated.name}`);
     await refreshLibraries();
+  }
+
+  function persistPins(next: Pin[]) {
+    setPins(next);
+    storage.setItem(LOCAL_PIN_STORAGE_KEY, serializePins(next));
   }
 
   function lockTarget() {
@@ -821,6 +845,22 @@ export function App() {
             >
               打开
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                const pin = { scope: "library" as const, id: lib.id };
+                persistPins(
+                  hasPin(pins, pin) ? removePin(pins, pin) : addPin(pins, pin),
+                );
+                setStatus(
+                  hasPin(pins, pin)
+                    ? `已取消钉选资料库 ${lib.name}（仅本机）`
+                    : `已钉选资料库 ${lib.name}（不上 S3）`,
+                );
+              }}
+            >
+              {hasPin(pins, { scope: "library", id: lib.id }) ? "取消钉选" : "钉选"}
+            </button>
           </li>
         ))}
       </ul>
@@ -1102,11 +1142,63 @@ export function App() {
           />
         </label>
       </p>
+      <p>
+        本机钉选 {pins.length} 项（不上远端）。原文件缓存 {originalCache.size}。
+        <button
+          type="button"
+          onClick={() => {
+            const refs = assets.map((asset) => ({
+              kind: "asset" as const,
+              id: asset.id,
+              blobSha256: asset.blobSha256,
+              folderId: asset.folderId,
+            }));
+            const removed = purgeUnpinnedOriginals(originalCache, pins, refs);
+            setStatus(`已清理 ${removed} 个未钉选原文件，远端 blob 仍在`);
+          }}
+        >
+          清理未钉选原文件
+        </button>
+      </p>
       <ul>
         {assets.map((asset) => (
           <li key={asset.id}>
             {asset.name} <code>{asset.thumbKey}</code>
             {asset.width && asset.height ? ` ${asset.width}×${asset.height}` : ""}
+            <button
+              type="button"
+              onClick={() => {
+                const pin = { scope: "asset" as const, id: asset.id };
+                persistPins(
+                  hasPin(pins, pin) ? removePin(pins, pin) : addPin(pins, pin),
+                );
+              }}
+            >
+              {hasPin(pins, { scope: "asset", id: asset.id }) ? "取消钉选" : "钉选"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                void fetchOriginalOnDemand(
+                  activeStore(form),
+                  formToConfig(form).prefix,
+                  originalCache,
+                  {
+                    kind: "asset",
+                    id: asset.id,
+                    blobSha256: asset.blobSha256,
+                    folderId: asset.folderId,
+                  },
+                  pins,
+                ).then((result) => {
+                  setStatus(
+                    `已按需取回 ${asset.name}（${result.bytes.byteLength} 字节）`,
+                  );
+                });
+              }}
+            >
+              取回原图
+            </button>
           </li>
         ))}
       </ul>
