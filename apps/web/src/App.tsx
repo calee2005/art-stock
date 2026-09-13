@@ -33,7 +33,6 @@ import {
   deleteBranch,
   getObjectMeta,
   listBranches,
-  listConflictBranches,
   listSnapshots,
   rollbackBranch,
   switchDefaultBranch,
