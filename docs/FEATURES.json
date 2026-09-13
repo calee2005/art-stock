@@ -322,7 +322,7 @@
         "Pad wifiOnly 时蜂窝不送图",
         "写回素材 meta 与 settings/vision-tag.json 走 withRemoteLock，不含 API Key"
       ],
-      "notes": ""
+      "notes": "VisionTagSettings at settings/vision-tag.json via withRemoteLock (no apiKey). tagAssetWithVision mock S3: no-key import skips LLM, wifiOnly cellular blocked, hand tags kept. Preset prompt in packages/core/prompts/asset-auto-tag.zh.md. Web settings + MCP auto_tag_assets."
     },
     {
       "id": "F-040",
