@@ -1477,7 +1477,7 @@ export function App() {
               disabled={!canWrite || !selectedLibraryId}
               onClick={() => {
                 const bytes = encodeMinimalPdf(["Page One", "Page Two"]);
-                const file = new File([bytes], "sample-two-page.pdf", {
+                const file = new File([Uint8Array.from(bytes)], "sample-two-page.pdf", {
                   type: "application/pdf",
                 });
                 void onPickFile(file);
