@@ -35,7 +35,7 @@
       "id": "F-001",
       "name": "core 类型与对象键生成",
       "phase": "P0",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-000"],
       "apps": ["core"],
       "designDoc": "docs/02-storage-protocol.md",
