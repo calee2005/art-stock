@@ -66,7 +66,7 @@
       "id": "F-003",
       "name": "全局写锁 withRemoteLock",
       "phase": "P0",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-002"],
       "apps": ["core"],
       "designDoc": "docs/02-storage-protocol.md",

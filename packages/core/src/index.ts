@@ -82,3 +82,15 @@ export {
   type PutConditions,
   type PutOptions,
 } from "./store.ts";
+
+export { RemoteError, isRemoteError, type RemoteErrorCode } from "./errors.ts";
+export {
+  LOCK_HEARTBEAT_MS,
+  LOCK_TTL_MS,
+  PROBE_RELATIVE_KEY,
+  probeConditionalWrites,
+  withRemoteLock,
+  type LockFnContext,
+  type RemoteLockTarget,
+  type WithRemoteLockOptions,
+} from "./lock.ts";
