@@ -99,7 +99,9 @@ export type AssetItem = {
   name: string;
   folderId: Uuid | null;
   tags: string[];
+  tagSet?: OrSet;
   rating: AssetRating;
+  ratingHlc?: Hlc;
   width?: number;
   height?: number;
   mimeType: string;
@@ -108,6 +110,13 @@ export type AssetItem = {
   sourceObjectId?: Uuid;
   createdAt: Iso8601;
   updatedAt: Iso8601;
+};
+
+export type AssetFolder = {
+  id: Uuid;
+  name: string;
+  parentId: Uuid | null;
+  order: number;
 };
 
 export type AssetIndexEntry = {
@@ -121,6 +130,7 @@ export type AssetIndex = {
   schemaVersion: SchemaVersion;
   updatedAt: Iso8601;
   updatedBy: DeviceId;
+  folders: AssetFolder[];
   items: AssetIndexEntry[];
 };
 

@@ -38,6 +38,12 @@ import {
   switchDefaultBranch,
   importAsset,
   listAssets,
+  listAssetFolders,
+  createAssetFolder,
+  addAssetTag,
+  removeAssetTag,
+  setAssetRating,
+  assetsMatchingTags,
   PLACEHOLDER_WEBP,
   LOCAL_PIN_STORAGE_KEY,
   addPin,
@@ -57,6 +63,7 @@ import {
   type Snapshot,
   type BranchPointer,
   type AssetItem,
+  type AssetFolder,
   type Pin,
 } from "@art-stock/core";
 import {
@@ -139,6 +146,12 @@ export function App() {
   }));
   const [pane, setPane] = useState<NavId>("library");
   const [assets, setAssets] = useState<AssetItem[]>([]);
+  const [assetFolders, setAssetFolders] = useState<AssetFolder[]>([]);
+  const [newAssetFolderName, setNewAssetFolderName] = useState("");
+  const [assetFolderId, setAssetFolderId] = useState("");
+  const [assetTagDraft, setAssetTagDraft] = useState("");
+  const [assetTagFilter, setAssetTagFilter] = useState("");
+  const [selectedAssetId, setSelectedAssetId] = useState("");
   const [pins, setPins] = useState<Pin[]>(() => {
     try {
       const raw = storage.getItem(LOCAL_PIN_STORAGE_KEY);
@@ -541,8 +554,14 @@ export function App() {
   }
 
   async function refreshAssets() {
-    const listed = await listAssets(activeStore(form), formToConfig(form).prefix);
+    const prefix = formToConfig(form).prefix;
+    const store = activeStore(form);
+    const [listed, folders] = await Promise.all([
+      listAssets(store, prefix),
+      listAssetFolders(store, prefix),
+    ]);
     setAssets(listed);
+    setAssetFolders(folders);
   }
 
   async function encodeWebpThumb(file: File): Promise<Uint8Array> {
@@ -587,12 +606,28 @@ export function App() {
         name: file.name,
         bytes,
         mimeType: file.type || "application/octet-stream",
+        folderId: assetFolderId || null,
         thumbBytes,
       });
       setStatus(`已导入素材 ${created.name}（原图在 blobs，本机默认只缓存缩略图）`);
       await refreshAssets();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "素材导入失败");
+    }
+  }
+
+  async function onCreateAssetFolder() {
+    if (!canWrite) {
+      return;
+    }
+    try {
+      const created = await createAssetFolder(lockTarget(), newAssetFolderName);
+      setNewAssetFolderName("");
+      setAssetFolderId(created.id);
+      setStatus(`已创建素材文件夹 ${created.name}`);
+      await refreshAssets();
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "创建素材文件夹失败");
     }
   }
 
@@ -1121,6 +1156,40 @@ export function App() {
       <p>
         全局素材库。默认同步元数据与 thumb.webp，原图按需取回，不写入每台设备磁盘。
       </p>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void onCreateAssetFolder();
+        }}
+      >
+        <label>
+          新素材文件夹
+          <input
+            value={newAssetFolderName}
+            onChange={(e) => setNewAssetFolderName(e.target.value)}
+            placeholder="例如 角色"
+          />
+        </label>
+        <button type="submit" disabled={!canWrite}>
+          创建文件夹
+        </button>
+      </form>
+      <p>
+        <label>
+          导入到文件夹
+          <select
+            value={assetFolderId}
+            onChange={(e) => setAssetFolderId(e.target.value)}
+          >
+            <option value="">（根）</option>
+            {assetFolders.map((folder) => (
+              <option key={folder.id} value={folder.id}>
+                {folder.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </p>
       <p>
         <button type="button" onClick={() => void refreshAssets()}>
           刷新素材
@@ -1138,6 +1207,16 @@ export function App() {
               }
               e.target.value = "";
             }}
+          />
+        </label>
+      </p>
+      <p>
+        <label>
+          按标签筛选
+          <input
+            value={assetTagFilter}
+            onChange={(e) => setAssetTagFilter(e.target.value)}
+            placeholder="多个标签需同时具备"
           />
         </label>
       </p>
@@ -1160,10 +1239,23 @@ export function App() {
         </button>
       </p>
       <ul>
-        {assets.map((asset) => (
+        {assetsMatchingTags(
+          assets.filter((asset) =>
+            assetFolderId ? asset.folderId === assetFolderId : true,
+          ),
+          assetTagFilter
+            .split(/[,，\s]+/)
+            .map((item) => item.trim())
+            .filter(Boolean),
+        ).map((asset) => (
           <li key={asset.id}>
-            {asset.name} <code>{asset.thumbKey}</code>
+            <button type="button" onClick={() => setSelectedAssetId(asset.id)}>
+              {asset.name}
+            </button>{" "}
+            <code>{asset.thumbKey}</code>
             {asset.width && asset.height ? ` ${asset.width}×${asset.height}` : ""}
+            {` ★${asset.rating}`}
+            {asset.tags.length > 0 ? ` [${asset.tags.join(", ")}]` : ""}
             <button
               type="button"
               onClick={() => {
@@ -1201,6 +1293,74 @@ export function App() {
           </li>
         ))}
       </ul>
+      {selectedAssetId ? (
+        <p>
+          <label>
+            给选中素材打标签
+            <input
+              value={assetTagDraft}
+              onChange={(e) => setAssetTagDraft(e.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={!canWrite}
+            onClick={() => {
+              void addAssetTag(lockTarget(), selectedAssetId, assetTagDraft)
+                .then(async () => {
+                  setAssetTagDraft("");
+                  await refreshAssets();
+                })
+                .catch((error: unknown) => {
+                  setStatus(error instanceof Error ? error.message : "打标签失败");
+                });
+            }}
+          >
+            打标签
+          </button>
+          <label>
+            评分
+            <select
+              value={
+                assets.find((item) => item.id === selectedAssetId)?.rating ?? 0
+              }
+              onChange={(e) => {
+                void setAssetRating(
+                  lockTarget(),
+                  selectedAssetId,
+                  Number(e.target.value),
+                )
+                  .then(() => refreshAssets())
+                  .catch((error: unknown) => {
+                    setStatus(error instanceof Error ? error.message : "评分失败");
+                  });
+              }}
+            >
+              {[0, 1, 2, 3, 4, 5].map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </label>
+          {(assets.find((item) => item.id === selectedAssetId)?.tags ?? []).map(
+            (tag) => (
+              <button
+                key={tag}
+                type="button"
+                disabled={!canWrite}
+                onClick={() => {
+                  void removeAssetTag(lockTarget(), selectedAssetId, tag).then(
+                    () => refreshAssets(),
+                  );
+                }}
+              >
+                {tag} ×
+              </button>
+            ),
+          )}
+        </p>
+      ) : null}
       <h2 id="pane-kanban">看板</h2>
       <p>
         <button type="button" onClick={() => void refreshKanban()}>

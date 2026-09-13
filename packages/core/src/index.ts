@@ -1,6 +1,7 @@
 export { SCHEMA_VERSION } from "./types.ts";
 export type {
   AssetCachePolicy,
+  AssetFolder,
   AssetIndex,
   AssetIndexEntry,
   AssetItem,
@@ -216,13 +217,25 @@ export {
 export {
   DEFAULT_ASSET_CACHE_POLICY,
   PLACEHOLDER_WEBP,
+  addAssetTag,
+  assetsInFolder,
+  assetsMatchingTags,
+  createAssetFolder,
   createDeviceAssetCache,
   getAssetMeta,
   hydrateAssetCache,
   importAsset,
   isWebp,
+  listAssetFolders,
   listAssets,
+  mergeAssetMeta,
+  moveAssetToFolder,
+  pickLwwRating,
   readPngSize,
+  removeAssetTag,
+  setAssetRating,
+  wouldCreateAssetFolderCycle,
+  type AssetWriteOptions,
   type DeviceAssetCache,
   type ImportAssetInput,
 } from "./assets.ts";
