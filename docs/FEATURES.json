@@ -409,7 +409,7 @@
       "id": "F-051",
       "name": "PDF 翻页查看",
       "phase": "P5",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-012"],
       "apps": ["web", "desktop", "android"],
       "designDoc": "docs/03-features/07-pdf.md",
