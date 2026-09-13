@@ -322,11 +322,12 @@
       "id": "F-041",
       "name": "桌面文件监视自动快照",
       "phase": "P4",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-040", "F-014"],
       "apps": ["desktop"],
       "designDoc": "docs/03-features/15-desktop.md",
-      "acceptance": ["auto-on-save 下保存监视文件产生 snapshot", "minIntervalMs 防抖生效"]
+      "acceptance": ["auto-on-save 下保存监视文件产生 snapshot", "minIntervalMs 防抖生效"],
+      "notes": "SnapshotPolicy default auto-on-save/5000ms; createAutoSnapshotController debounce then commitSnapshot via withRemoteLock; desktop createDesktopFileWatch + Rust watch_start/stop poll mtime. Tests use fake clock, no OS watcher required."
     },
     {
       "id": "F-042",

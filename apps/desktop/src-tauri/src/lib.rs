@@ -1,6 +1,7 @@
 //! Art Stock native host. Protocol (keys, lock, merge) stays in `packages/core`.
 
 mod secrets;
+mod watch;
 
 use tauri::Manager;
 
@@ -27,10 +28,13 @@ fn cache_dir(app: tauri::AppHandle) -> Result<String, String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(watch::WatchRegistry::new())
         .invoke_handler(tauri::generate_handler![
             secure_store_set,
             secure_store_get,
-            cache_dir
+            cache_dir,
+            watch::watch_start,
+            watch::watch_stop
         ])
         .run(tauri::generate_context!())
         .expect("error while running Art Stock");

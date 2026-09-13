@@ -34,6 +34,7 @@ export type {
   SchemaVersion,
   Sha256Hex,
   Snapshot,
+  SnapshotPolicy,
   TreeNode,
   TreeNodeKind,
   Uuid,
@@ -192,3 +193,11 @@ export {
   switchDefaultBranch,
   validateBranchName,
 } from "./versions.ts";
+
+export {
+  DEFAULT_SNAPSHOT_POLICY,
+  createAutoSnapshotController,
+  createManualClock,
+  type AutoSnapshotResult,
+  type ClockScheduler,
+} from "./auto-snapshot.ts";

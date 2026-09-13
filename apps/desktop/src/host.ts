@@ -1,9 +1,13 @@
 import {
+  DEFAULT_SNAPSHOT_POLICY,
+  createAutoSnapshotController,
   createLibrary,
   listLibraries,
+  type AutoSnapshotResult,
   type ObjectStore,
   type RemoteConfig,
   type RemoteLockTarget,
+  type SnapshotPolicy,
 } from "@art-stock/core";
 
 export type SecureStore = {
@@ -73,4 +77,51 @@ export async function createLibraryOnDesktop(
   name: string,
 ) {
   return createLibrary(desktopLockTarget(store, prefix), name);
+}
+
+export type WatchedArtwork = {
+  path: string;
+  objectId: string;
+  policy?: SnapshotPolicy;
+};
+
+export type DesktopFileIo = {
+  readFile(path: string): Promise<Uint8Array>;
+};
+
+/**
+ * Bind local files to artwork objects. Native watch_start/stop only reports
+ * path changes; this host reads bytes and debounces commitSnapshot.
+ */
+export function createDesktopFileWatch(
+  remote: RemoteLockTarget,
+  io: DesktopFileIo,
+  controller = createAutoSnapshotController(),
+) {
+  const bindings = new Map<string, WatchedArtwork>();
+  return {
+    bind(watch: WatchedArtwork): void {
+      bindings.set(watch.path, watch);
+    },
+    unbind(path: string): void {
+      const current = bindings.get(path);
+      if (current) {
+        controller.cancel(current.objectId);
+      }
+      bindings.delete(path);
+    },
+    async onFsChange(path: string): Promise<AutoSnapshotResult | { status: "unbound" }> {
+      const watch = bindings.get(path);
+      if (!watch) {
+        return { status: "unbound" };
+      }
+      const bytes = await io.readFile(path);
+      return controller.notifyFileSaved(
+        remote,
+        watch.objectId,
+        bytes,
+        watch.policy ?? DEFAULT_SNAPSHOT_POLICY,
+      );
+    },
+  };
 }

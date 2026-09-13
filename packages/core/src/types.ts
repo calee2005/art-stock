@@ -85,6 +85,12 @@ export type Snapshot = {
   createdBy: DeviceId;
 };
 
+/** Local snapshot policy (per object or library). Not stored on the remote. */
+export type SnapshotPolicy = {
+  mode: "auto-on-save" | "manual";
+  minIntervalMs: number;
+};
+
 export type LockPurpose =
   | "sync"
   | "upload"
