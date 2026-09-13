@@ -1,0 +1,619 @@
+{
+  "schemaVersion": 1,
+  "project": "art-stock",
+  "statusEnum": ["todo", "doing", "done", "blocked"],
+  "phases": [
+    { "id": "P0", "name": "骨架" },
+    { "id": "P1", "name": "资料库 MVP" },
+    { "id": "P2", "name": "Tablet Shell + Android 通路" },
+    { "id": "P3", "name": "素材库 + 检索" },
+    { "id": "P4", "name": "快照分支 + 冲突 + 钉选" },
+    { "id": "P5", "name": "创作工具" },
+    { "id": "P6", "name": "项目工具" },
+    { "id": "P7", "name": "扩展" },
+    { "id": "P8", "name": "墨水屏" },
+    { "id": "P9", "name": "多端加固" }
+  ],
+  "features": [
+    {
+      "id": "F-000",
+      "name": "Monorepo 骨架（pnpm/Turbo/Cargo，空包边界）",
+      "phase": "P0",
+      "status": "todo",
+      "dependsOn": [],
+      "apps": ["web", "desktop"],
+      "designDoc": "docs/03-features/18-monorepo.md",
+      "acceptance": [
+        "pnpm-workspace 包含 packages/* 与 apps/web、apps/desktop",
+        "Turbo 能对 core 跑空 test/lint 脚本",
+        "Cargo workspace 指向 desktop src-tauri 与 crates/native 占位",
+        "gitignore 排除 node_modules、target、密钥文件"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-001",
+      "name": "core 类型与对象键生成",
+      "phase": "P0",
+      "status": "todo",
+      "dependsOn": ["F-000"],
+      "apps": ["core"],
+      "designDoc": "docs/02-storage-protocol.md",
+      "acceptance": [
+        "RemoteConfig.prefix 默认为空（桶根），规范化非空时以 / 结尾",
+        "协议根固定为 {prefix}.artstock/v1/，objectKey() 单测覆盖空 prefix 与 art/ 两种",
+        "blob/object/library/kanban/lock 路径函数有单测",
+        "JSON 类型 camelCase，含 schemaVersion"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-002",
+      "name": "S3 适配接口 + mock 实现",
+      "phase": "P0",
+      "status": "todo",
+      "dependsOn": ["F-001"],
+      "apps": ["core", "web"],
+      "designDoc": "docs/03-features/01-remotes.md",
+      "acceptance": [
+        "抽象 get/put/delete/list/head，put 支持 If-Match / If-None-Match / x-oss-forbid-overwrite",
+        "内存 mock 可用于单测",
+        "path-style 与 virtual-hosted 在真实适配器中可配置（可先 stub）"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-003",
+      "name": "全局写锁 withRemoteLock",
+      "phase": "P0",
+      "status": "todo",
+      "dependsOn": ["F-002"],
+      "apps": ["core"],
+      "designDoc": "docs/02-storage-protocol.md",
+      "acceptance": [
+        "获取：对象不存在时条件 PUT 成功",
+        "占用中返回 REMOTE_LOCK_HELD",
+        "过期后 If-Match 抢锁且 fencingToken+1",
+        "心跳失败或 token 变大则中止写入 REMOTE_LOCK_LOST",
+        "finally 条件 DELETE 释放",
+        "禁止无条件覆盖锁；不支持条件写探测失败为 REMOTE_UNSUPPORTED"
+      ],
+      "notes": "任何真实 PUT 必须经此函数。TTL 60s 心跳 20s。"
+    },
+    {
+      "id": "F-004",
+      "name": "Web：远端配置、探测、list/get、受控 PUT",
+      "phase": "P0",
+      "status": "todo",
+      "dependsOn": ["F-003"],
+      "apps": ["web"],
+      "designDoc": "docs/03-features/14-web.md",
+      "acceptance": [
+        "表单可保存 endpoint/bucket/key/path-style/prefix/只读",
+        "探测含条件写；失败不得当读写远端",
+        "只读模式禁用写入口",
+        "list/get 成功；PUT 前后能观察到 lock.json",
+        "密钥不进构建产物"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-005",
+      "name": "Tauri 空壳：desktop + Android 目标声明",
+      "phase": "P0",
+      "status": "todo",
+      "dependsOn": ["F-000"],
+      "apps": ["desktop", "android"],
+      "designDoc": "docs/03-features/15-desktop.md",
+      "acceptance": [
+        "lib.rs 使用 mobile_entry_point 宏",
+        "desktop 与 mobile 分 capabilities",
+        "Windows 或 macOS 上 tauri dev 能开空窗加载 webview"
+      ],
+      "notes": "本项不要求 Android 真机跑通业务。"
+    },
+    {
+      "id": "F-010",
+      "name": "资料库 CRUD 与 manifest",
+      "phase": "P1",
+      "status": "todo",
+      "dependsOn": ["F-004"],
+      "apps": ["web", "desktop", "core"],
+      "designDoc": "docs/03-features/02-libraries.md",
+      "acceptance": [
+        "可创建、重命名、列出多个资料库",
+        "写入走锁并更新 manifest.json",
+        "另一客户端拉到同一列表"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-011",
+      "name": "多层文件夹树",
+      "phase": "P1",
+      "status": "todo",
+      "dependsOn": ["F-010"],
+      "apps": ["web", "desktop", "core"],
+      "designDoc": "docs/03-features/02-libraries.md",
+      "acceptance": [
+        "至少三层文件夹",
+        "拖拽或移动不丢子节点、不产生环",
+        "tree.json 持锁提交"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-012",
+      "name": "文件导入与 object meta",
+      "phase": "P1",
+      "status": "todo",
+      "dependsOn": ["F-011"],
+      "apps": ["web", "desktop"],
+      "designDoc": "docs/03-features/02-libraries.md",
+      "acceptance": [
+        "导入任意二进制为 object，blob 按 sha256 存储",
+        "类型至少区分 binary 与后续扩展点",
+        "离线入队、上线持锁上传"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-013",
+      "name": "文件夹与文件标签",
+      "phase": "P1",
+      "status": "todo",
+      "dependsOn": ["F-012"],
+      "apps": ["web", "desktop", "core"],
+      "designDoc": "docs/03-features/02-libraries.md",
+      "acceptance": [
+        "打标签、按标签筛选",
+        "合并遵循 OR-Set（单测）"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-014",
+      "name": "桌面接入同一 core（IPC + 本地缓存目录）",
+      "phase": "P1",
+      "status": "todo",
+      "dependsOn": ["F-005", "F-010"],
+      "apps": ["desktop"],
+      "designDoc": "docs/03-features/15-desktop.md",
+      "acceptance": [
+        "桌面与 Web 对同一远端看到同一库列表",
+        "密钥走安全存储 command 而非明文 json"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-015",
+      "name": "元数据与缩略图缓存 + 同步队列",
+      "phase": "P1",
+      "status": "todo",
+      "dependsOn": ["F-012"],
+      "apps": ["web", "desktop", "core"],
+      "designDoc": "docs/03-features/05-sync.md",
+      "acceptance": [
+        "暂停同步时队列保留",
+        "锁占用时 UI 显示 deviceName 与 TTL，不盲写",
+        "状态栏展示待提交条数"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-020",
+      "name": "Tablet shell 横屏/竖屏",
+      "phase": "P2",
+      "status": "todo",
+      "dependsOn": ["F-000"],
+      "apps": ["web", "android"],
+      "designDoc": "docs/03-features/16-android-pad.md",
+      "acceptance": [
+        "横屏左侧栏，竖屏底栏",
+        "触控热区文档要求落实到主要导航",
+        "Web 窄屏使用同一壳"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-021",
+      "name": "Android Keystore 存远端密钥",
+      "phase": "P2",
+      "status": "todo",
+      "dependsOn": ["F-005", "F-004"],
+      "apps": ["android"],
+      "designDoc": "docs/03-features/16-android-pad.md",
+      "acceptance": [
+        "密钥不在明文 SharedPreferences 裸存",
+        "杀进程后仍能读取并连接 OSS"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-022",
+      "name": "Android 沙箱 SQLite 与缓存目录",
+      "phase": "P2",
+      "status": "todo",
+      "dependsOn": ["F-021", "F-015"],
+      "apps": ["android"],
+      "designDoc": "docs/03-features/16-android-pad.md",
+      "acceptance": [
+        "元数据在应用沙箱 SQLite",
+        "可回收缓存与 pinned 目录分开"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-023",
+      "name": "Pad 真机通路：OSS 浏览与上传",
+      "phase": "P2",
+      "status": "todo",
+      "dependsOn": ["F-020", "F-022", "F-010"],
+      "apps": ["android"],
+      "designDoc": "docs/03-features/16-android-pad.md",
+      "acceptance": [
+        "平板横竖屏：配置 OSS → 浏览库 → 上传文件",
+        "上传走全局锁",
+        "不以仅打开 GitHub Pages 代替本项"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-030",
+      "name": "素材库导入与缩略图",
+      "phase": "P3",
+      "status": "todo",
+      "dependsOn": ["F-012"],
+      "apps": ["web", "desktop"],
+      "designDoc": "docs/03-features/04-assets.md",
+      "acceptance": [
+        "导入图片写入 assets/items 与 blob",
+        "桌面生成 thumb.webp 并持锁上传",
+        "默认不同步原图到所有设备磁盘"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-031",
+      "name": "素材文件夹、标签、评分",
+      "phase": "P3",
+      "status": "todo",
+      "dependsOn": ["F-030"],
+      "apps": ["web", "desktop"],
+      "designDoc": "docs/03-features/04-assets.md",
+      "acceptance": ["文件夹树", "标签筛选", "评分 0-5 LWW"]
+    },
+    {
+      "id": "F-032",
+      "name": "素材检索索引（SQLite FTS / MiniSearch）",
+      "phase": "P3",
+      "status": "todo",
+      "dependsOn": ["F-031"],
+      "apps": ["web", "desktop"],
+      "designDoc": "docs/03-features/04-assets.md",
+      "acceptance": ["按名称与标签搜索返回正确子集"]
+    },
+    {
+      "id": "F-033",
+      "name": "Pad 系统分享导入素材/收件箱",
+      "phase": "P3",
+      "status": "todo",
+      "dependsOn": ["F-023", "F-030"],
+      "apps": ["android"],
+      "designDoc": "docs/03-features/16-android-pad.md",
+      "acceptance": ["从其它 App 分享一张图可进入收件箱或素材库"]
+    },
+    {
+      "id": "F-040",
+      "name": "手动 snapshot 与历史回滚",
+      "phase": "P4",
+      "status": "todo",
+      "dependsOn": ["F-012"],
+      "apps": ["web", "desktop", "core"],
+      "designDoc": "docs/03-features/03-artwork-versions.md",
+      "acceptance": [
+        "两次 commit 两个 snapshot",
+        "回滚只改分支指针不删历史",
+        "blob 不可变"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-041",
+      "name": "桌面文件监视自动快照",
+      "phase": "P4",
+      "status": "todo",
+      "dependsOn": ["F-040", "F-014"],
+      "apps": ["desktop"],
+      "designDoc": "docs/03-features/15-desktop.md",
+      "acceptance": ["auto-on-save 下保存监视文件产生 snapshot", "minIntervalMs 防抖生效"]
+    },
+    {
+      "id": "F-042",
+      "name": "命名分支 CRUD 与切换",
+      "phase": "P4",
+      "status": "todo",
+      "dependsOn": ["F-040"],
+      "apps": ["web", "desktop", "core"],
+      "designDoc": "docs/03-features/03-artwork-versions.md",
+      "acceptance": ["从当前 snapshot 建分支", "在 alt 上 commit 不影响 main 指针"]
+    },
+    {
+      "id": "F-043",
+      "name": "同分支分叉生成 conflict 分支",
+      "phase": "P4",
+      "status": "todo",
+      "dependsOn": ["F-042"],
+      "apps": ["core"],
+      "designDoc": "docs/02-storage-protocol.md",
+      "acceptance": [
+        "单测：两设备同一分支不同 parent → conflict/{deviceId}-{hlc}",
+        "远端原分支不被覆盖"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-044",
+      "name": "钉选范围、按需取回、清理未钉选",
+      "phase": "P4",
+      "status": "todo",
+      "dependsOn": ["F-015"],
+      "apps": ["web", "desktop", "android"],
+      "designDoc": "docs/03-features/05-sync.md",
+      "acceptance": [
+        "Pin 不上 S3",
+        "未钉选无原文件有缩略图/元数据",
+        "清理后仍能从远端打开"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-045",
+      "name": "Pad 收件箱扫描代替 file watch",
+      "phase": "P4",
+      "status": "todo",
+      "dependsOn": ["F-033", "F-040"],
+      "apps": ["android"],
+      "designDoc": "docs/03-features/16-android-pad.md",
+      "acceptance": ["前台扫描或手动刷新发现新文件并按策略 snapshot"]
+    },
+    {
+      "id": "F-046",
+      "name": "仅 Wi-Fi 下载原文件（Pad 默认开）",
+      "phase": "P4",
+      "status": "todo",
+      "dependsOn": ["F-023", "F-044"],
+      "apps": ["android"],
+      "designDoc": "docs/03-features/16-android-pad.md",
+      "acceptance": ["蜂窝网络下原图下载被拦截，元数据浏览仍可用"]
+    },
+    {
+      "id": "F-050",
+      "name": "Markdown WYSIWYG、TOC、插入素材",
+      "phase": "P5",
+      "status": "todo",
+      "dependsOn": ["F-012", "F-030"],
+      "apps": ["web", "desktop", "android"],
+      "designDoc": "docs/03-features/06-markdown.md",
+      "acceptance": [
+        "所见即所得保存为 md blob",
+        "TOC 跳转",
+        "artstock://asset/{id} 不发公网"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-051",
+      "name": "PDF 翻页查看",
+      "phase": "P5",
+      "status": "todo",
+      "dependsOn": ["F-012"],
+      "apps": ["web", "desktop", "android"],
+      "designDoc": "docs/03-features/07-pdf.md",
+      "acceptance": ["≥2 页 PDF 翻页正确", "未钉选点开再拉文件"]
+    },
+    {
+      "id": "F-052",
+      "name": "思维导图编辑与 JSON blob",
+      "phase": "P5",
+      "status": "todo",
+      "dependsOn": ["F-012"],
+      "apps": ["web", "desktop", "android"],
+      "designDoc": "docs/03-features/08-mindmap.md",
+      "acceptance": ["三层节点重开一致", "存盘为文档规定 JSON 而非私有二进制"]
+    },
+    {
+      "id": "F-060",
+      "name": "看板 Workspace 与 Board",
+      "phase": "P6",
+      "status": "todo",
+      "dependsOn": ["F-003"],
+      "apps": ["web", "desktop", "android", "core"],
+      "designDoc": "docs/03-features/10-kanban.md",
+      "acceptance": [
+        "可建多个 Workspace",
+        "Board 只属于一个 Workspace",
+        "index.json 可供侧栏"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-061",
+      "name": "看板 List 与 Item CRUD",
+      "phase": "P6",
+      "status": "todo",
+      "dependsOn": ["F-060"],
+      "apps": ["web", "desktop", "android", "core"],
+      "designDoc": "docs/03-features/10-kanban.md",
+      "acceptance": [
+        "默认三列模板",
+        "Item 含标题、描述、截止、清单、标签、封面素材、附件 object",
+        "对象按层拆分存储"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-062",
+      "name": "看板拖拽改 listId/order",
+      "phase": "P6",
+      "status": "todo",
+      "dependsOn": ["F-061"],
+      "apps": ["web", "desktop", "android"],
+      "designDoc": "docs/03-features/10-kanban.md",
+      "acceptance": ["列间拖动刷新后仍正确", "Pad 为横向滑列 + 全屏详情"]
+    },
+    {
+      "id": "F-063",
+      "name": "多维数据表（JSON+oplog，非 S3 上的 SQLite）",
+      "phase": "P6",
+      "status": "todo",
+      "dependsOn": ["F-012"],
+      "apps": ["web", "desktop", "android", "core"],
+      "designDoc": "docs/03-features/09-database.md",
+      "acceptance": [
+        "建列建行持久化",
+        "不同行两端编辑可合并",
+        "同单元格比较后选边",
+        "S3 无该库的 sqlite 真源"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-064",
+      "name": "冲突处理 UI",
+      "phase": "P6",
+      "status": "todo",
+      "dependsOn": ["F-043"],
+      "apps": ["web", "desktop", "android"],
+      "designDoc": "docs/03-features/11-conflicts.md",
+      "acceptance": ["徽章计数", "采用远端 / 采用本地 / 保留双方"]
+    },
+    {
+      "id": "F-070",
+      "name": "桌面插件宿主与示例插件",
+      "phase": "P7",
+      "status": "todo",
+      "dependsOn": ["F-012"],
+      "apps": ["desktop"],
+      "designDoc": "docs/03-features/12-plugins.md",
+      "acceptance": [
+        "manifest 注册类型",
+        "writeBlob 走 core 队列与锁",
+        "插件读不到密钥",
+        "Pad/Web 无第三方插件时内置类型正常"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-071",
+      "name": "MCP stdio tools",
+      "phase": "P7",
+      "status": "todo",
+      "dependsOn": ["F-050", "F-061"],
+      "apps": ["desktop", "mcp"],
+      "designDoc": "docs/03-features/13-mcp.md",
+      "acceptance": [
+        "list_libraries / search_assets / write_markdown / kanban_* 可用",
+        "返回值无密钥",
+        "写操作走锁"
+      ],
+      "notes": "仅桌面"
+    },
+    {
+      "id": "F-080",
+      "name": "subtree 拉取上游固件并刷机验证启动",
+      "phase": "P8",
+      "status": "todo",
+      "dependsOn": [],
+      "apps": ["eink"],
+      "designDoc": "docs/03-features/17-eink.md",
+      "acceptance": [
+        "apps/eink 来自 github.com/calee2005/youn-ink-fourcolor-firmware",
+        "UPSTREAM.md 记录来源与 subtree pull 方法",
+        "RawDraw 主界面亮屏，WiFi/设置可进",
+        "未删 board 驱动与 RawDraw",
+        "未新建平行 firmware 工程"
+      ],
+      "notes": "本项未完成前禁止改驱动或换 UI 框架。"
+    },
+    {
+      "id": "F-081",
+      "name": "客户端持锁写 eink config 与 summary",
+      "phase": "P8",
+      "status": "todo",
+      "dependsOn": ["F-010", "F-061", "F-003"],
+      "apps": ["web", "desktop", "android"],
+      "designDoc": "docs/02-storage-protocol.md",
+      "acceptance": [
+        "summary 含 libraryCount、recentFiles、todos",
+        "体积 < 32KB",
+        "不含密钥",
+        "PUT 在持锁窗口内"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-082",
+      "name": "固件 S3 GET 与 art-stock 页面",
+      "phase": "P8",
+      "status": "todo",
+      "dependsOn": ["F-080", "F-081"],
+      "apps": ["eink"],
+      "designDoc": "docs/03-features/17-eink.md",
+      "acceptance": [
+        "NVS 可登记多个远端",
+        "只 GET config+summary，不 List 全桶，不 PUT",
+        "展示库统计、最近文件、待办",
+        "刷新间隔读 config，默认 120 分钟",
+        "断网显示缓存、不崩溃",
+        "只加 RawDraw 页面"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-090",
+      "name": "多远端复制（按 remoteId 排序加锁）",
+      "phase": "P9",
+      "status": "todo",
+      "dependsOn": ["F-015", "F-003"],
+      "apps": ["desktop", "core"],
+      "designDoc": "docs/02-storage-protocol.md",
+      "acceptance": [
+        "字典序取锁避免死锁",
+        "OSS 新对象可补到 NAS",
+        "replicas 字段更新"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-091",
+      "name": "GitHub Pages 发布与 CORS 文档验证",
+      "phase": "P9",
+      "status": "todo",
+      "dependsOn": ["F-004"],
+      "apps": ["web"],
+      "designDoc": "docs/03-features/14-web.md",
+      "acceptance": [
+        "Actions 构建不含密钥",
+        "CORS 说明含锁条件头",
+        "未配 CORS 时错误可读"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "F-092",
+      "name": "Android SAF 授权目录与后台尽力同步",
+      "phase": "P9",
+      "status": "todo",
+      "dependsOn": ["F-045"],
+      "apps": ["android"],
+      "designDoc": "docs/03-features/16-android-pad.md",
+      "acceptance": [
+        "用户可选导出目录，撤销授权后停止扫描",
+        "充电+Wi-Fi 时尽力同步有文档化限制",
+        "系统回收缓存不影响 pinned"
+      ],
+      "notes": ""
+    }
+  ]
+}
