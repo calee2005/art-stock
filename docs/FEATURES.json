@@ -247,7 +247,7 @@
       "id": "F-023",
       "name": "Pad 真机通路：OSS 浏览与上传",
       "phase": "P2",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-020", "F-022", "F-010"],
       "apps": ["android"],
       "designDoc": "docs/03-features/16-android-pad.md",
@@ -256,7 +256,7 @@
         "上传走全局锁",
         "不以仅打开 GitHub Pages 代替本项"
       ],
-      "notes": ""
+      "notes": "Pad APK WebView: S3ObjectStore + withRemoteLock put; Keystore via nativeAttach (not ndk-context). Pixel Tablet API 34: configure OSS, list Pad库, lockSeenDuringPut. Secrets not in localStorage/status."
     },
     {
       "id": "F-030",

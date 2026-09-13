@@ -66,10 +66,27 @@ printf '%s\n' "$status" > "$ART/f023_pad_e2e_status.json"
 [[ "$status" == *Pad库* ]] || { echo "library missing: $status"; exit 1; }
 [[ "$status" == *lockSeenDuringPut* ]] || { echo "lock evidence missing"; exit 1; }
 
-adb exec-out screencap -p > "$ART/f023_pad_landscape.png"
-
+adb exec-out screencap -p > "$ART/f023_rot_a.png"
 adb shell wm user-rotation lock 0 >/dev/null || adb shell settings put system user_rotation 0 >/dev/null
 sleep 2
-adb exec-out screencap -p > "$ART/f023_pad_portrait.png"
+adb exec-out screencap -p > "$ART/f023_rot_b.png"
+python3 - "$ART/f023_rot_a.png" "$ART/f023_rot_b.png" "$ART" <<'PY'
+import struct, sys
+from pathlib import Path
+
+def png_size(path: Path):
+    data = path.read_bytes()
+    return struct.unpack(">II", data[16:24])
+
+art = Path(sys.argv[3])
+for src in map(Path, sys.argv[1:3]):
+    width, height = png_size(src)
+    dest = art / (
+        "f023_pixel_tablet_landscape_sidebar.png"
+        if width >= height
+        else "f023_pixel_tablet_portrait_bottom_nav.png"
+    )
+    dest.write_bytes(src.read_bytes())
+PY
 
 echo "F-023 ok: Keystore + browse library + locked upload (landscape/portrait screenshots)"
