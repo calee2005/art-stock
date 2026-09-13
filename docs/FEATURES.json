@@ -116,7 +116,7 @@
       "id": "F-010",
       "name": "资料库 CRUD 与 manifest",
       "phase": "P1",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-004"],
       "apps": ["web", "desktop", "core"],
       "designDoc": "docs/03-features/02-libraries.md",
