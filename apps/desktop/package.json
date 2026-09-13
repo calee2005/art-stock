@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "tauri dev",
     "build": "tauri build",
-    "lint": "node -e \"process.exit(0)\"",
-    "test": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "node --experimental-strip-types --test src/host.test.ts && cargo test --manifest-path src-tauri/Cargo.toml"
     "tauri": "tauri"
   },
   "dependencies": {
