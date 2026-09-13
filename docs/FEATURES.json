@@ -516,7 +516,7 @@
       "id": "F-071",
       "name": "MCP stdio tools",
       "phase": "P7",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-050", "F-061"],
       "apps": ["desktop", "mcp"],
       "designDoc": "docs/03-features/13-mcp.md",
