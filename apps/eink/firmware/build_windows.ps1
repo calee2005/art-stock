@@ -64,6 +64,71 @@ if (-not $env:IDF_PATH) {
 Write-Host "[INFO] IDF_PATH=$env:IDF_PATH"
 Write-Host "[INFO] IDF_TOOLS_PATH=$env:IDF_TOOLS_PATH"
 
+# B-004: esp_cam_sensor 1.5.2 private SPI slave does not compile on IDF 6.0.3.
+# Official fix is >=2.0.1; managed_components is gitignored so re-apply after download.
+function Apply-EspCamSensorIdf6Patch {
+    $camRoot = Join-Path $projectDir "managed_components\espressif__esp_cam_sensor"
+    $header = Join-Path $camRoot "src\driver_spi\esp_cam_spi_slave.h"
+    $cmake = Join-Path $camRoot "CMakeLists.txt"
+    if (-not (Test-Path -LiteralPath $header)) {
+        return
+    }
+
+    $headerText = Get-Content -LiteralPath $header -Raw
+    if ($headerText -notmatch 'only for ESP-IDF versions < v6\.0\.0') {
+        $headerText = $headerText.Replace(
+            "#include `"driver/spi_slave.h`"`r`n",
+            "#include `"driver/spi_slave.h`"`r`n#include `"esp_idf_version.h`"`r`n"
+        )
+        if ($headerText -notmatch 'esp_idf_version\.h') {
+            $headerText = $headerText.Replace(
+                "#include `"driver/spi_slave.h`"`n",
+                "#include `"driver/spi_slave.h`"`n#include `"esp_idf_version.h`"`n"
+            )
+        }
+        $oldGuard = @"
+/**
+ * @brief Enable Camera private SPI slave driver
+ */
+#if CONFIG_SPIRAM
+#define ESP_CAM_SPI_DRIVER 1
+#endif
+"@
+        $newGuard = @"
+/**
+ * @brief Enable Camera private SPI slave driver, only for ESP-IDF versions < v6.0.0
+ */
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(6, 0, 0)
+#if CONFIG_SPIRAM
+#define ESP_CAM_SPI_DRIVER 1
+#endif
+#endif
+"@
+        if ($headerText.Contains($oldGuard)) {
+            $headerText = $headerText.Replace($oldGuard, $newGuard)
+            Set-Content -LiteralPath $header -Value $headerText -NoNewline
+            Write-Host "[INFO] Patched esp_cam_sensor header for IDF 6 (B-004)"
+        }
+    }
+
+    if (Test-Path -LiteralPath $cmake) {
+        $cmakeText = Get-Content -LiteralPath $cmake -Raw
+        $oldCmake = "if(CONFIG_SPIRAM)`r`n    list(APPEND srcs `"src/driver_spi/spi_slave.c`")`r`nendif()"
+        $oldCmakeUnix = "if(CONFIG_SPIRAM)`n    list(APPEND srcs `"src/driver_spi/spi_slave.c`")`nendif()"
+        $newCmake = "# IDF 6.0+ ships a public SPI slave driver; 1.5.2's private copy does not compile.`nif(CONFIG_SPIRAM AND IDF_VERSION_MAJOR LESS 6)`n    list(APPEND srcs `"src/driver_spi/spi_slave.c`")`nendif()"
+        if ($cmakeText.Contains($oldCmake)) {
+            $cmakeText = $cmakeText.Replace($oldCmake, $newCmake)
+            Set-Content -LiteralPath $cmake -Value $cmakeText -NoNewline
+            Write-Host "[INFO] Patched esp_cam_sensor CMakeLists for IDF 6 (B-004)"
+        }
+        elseif ($cmakeText.Contains($oldCmakeUnix)) {
+            $cmakeText = $cmakeText.Replace($oldCmakeUnix, $newCmake)
+            Set-Content -LiteralPath $cmake -Value $cmakeText -NoNewline
+            Write-Host "[INFO] Patched esp_cam_sensor CMakeLists for IDF 6 (B-004)"
+        }
+    }
+}
+
 function Invoke-Idf {
     param([Parameter(ValueFromRemainingArguments = $true)][string[]]$IdfArgs)
     Write-Host "[INFO] Running idf.py $($IdfArgs -join ' ')"
@@ -79,6 +144,7 @@ try {
         Invoke-Idf fullclean
     }
 
+    Apply-EspCamSensorIdf6Patch
     Invoke-Idf build
 
     if ($Flash) {

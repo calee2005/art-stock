@@ -40,6 +40,8 @@ cd apps/eink/firmware
 .\build_windows.ps1
 ```
 
+`esp_cam_sensor` 1.5.2 在 IDF 6.0.3 上无法编译私有 `spi_slave.c`（B-004）。`build_windows.ps1` 会在构建前按官方 2.0.1 做法禁用该私有驱动，改用 IDF 自带 SPI slave。
+
 默认板型 `zectrix-s3-epaper-4.2`，四色 `CONFIG_ZECTRIX_EPD_PANEL_4COLOR_SSD2683=y`。主 UI 为 RawDraw（见 `firmware/main/rawdraw/` 与 `ui/rawdraw_ui_manager.cc`）。
 
 ## 保留约定
