@@ -558,7 +558,7 @@
         "不含密钥",
         "PUT 在持锁窗口内"
       ],
-      "notes": "writeEinkConfig/refreshEinkSummary use purpose eink-summary. Firmware fetchEinkForFirmware GETs only those two keys (no List, no lock). F-080 remains blocked (no hardware flash)."]
+      "notes": "writeEinkConfig/refreshEinkSummary use purpose eink-summary. Firmware fetchEinkForFirmware GETs only those two keys (no List, no lock). F-080 remains blocked (no hardware flash)."
     },
     {
       "id": "F-082",
@@ -597,7 +597,7 @@
       "id": "F-091",
       "name": "GitHub Pages 发布与 CORS 文档验证",
       "phase": "P9",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-004"],
       "apps": ["web"],
       "designDoc": "docs/03-features/14-web.md",
@@ -606,7 +606,7 @@
         "CORS 说明含锁条件头",
         "未配 CORS 时错误可读"
       ],
-      "notes": ""
+      "notes": "pages.yml builds apps/web with PAGES_BASE, no secrets.*. corsExampleJson includes If-Match/If-None-Match/x-oss-forbid-overwrite. Failed to fetch shows cors-error, not a blank page."
     },
     {
       "id": "F-092",

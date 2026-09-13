@@ -6,3 +6,4 @@
 
 | id | 症状 | 复现 | 影响 FEATURE | 状态 |
 | --- | --- | --- | --- | --- |
+| B-001 | `docs/FEATURES.json` F-081 `notes` 末尾多了一个 `]`，JSON 无法解析 | 打开 FEATURES.json 跑 `JSON.parse` | 任务领取扫描 | fixed |
