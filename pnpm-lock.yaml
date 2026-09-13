@@ -230,6 +230,10 @@ importers:
         version: 5.9.3
 
   packages/mcp:
+    dependencies:
+      '@art-stock/core':
+        specifier: workspace:*
+        version: link:../core
     devDependencies:
       typescript:
         specifier: ^5.9.2

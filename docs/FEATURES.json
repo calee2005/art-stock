@@ -516,7 +516,7 @@
       "id": "F-071",
       "name": "MCP stdio tools",
       "phase": "P7",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-050", "F-061"],
       "apps": ["desktop", "mcp"],
       "designDoc": "docs/03-features/13-mcp.md",
@@ -525,7 +525,7 @@
         "返回值无密钥",
         "写操作走锁"
       ],
-      "notes": "仅桌面"
+      "notes": "packages/mcp callMcpTool + JSON-RPC tools/list|call. Writes via withRemoteLock. list_remotes omits secrets. artstock-mcp NDJSON stdio."
     },
     {
       "id": "F-080",
