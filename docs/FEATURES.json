@@ -473,7 +473,7 @@
       "id": "F-063",
       "name": "多维数据表（JSON+oplog，非 S3 上的 SQLite）",
       "phase": "P6",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-012"],
       "apps": ["web", "desktop", "android", "core"],
       "designDoc": "docs/03-features/09-database.md",
