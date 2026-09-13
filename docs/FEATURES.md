@@ -4,11 +4,11 @@ Agent 以 [FEATURES.json](FEATURES.json) 为任务源，本文件为可读勾选
 
 领取规则见 [AGENTS.md](../AGENTS.md)。阶段说明见 [04-roadmap.md](04-roadmap.md)。
 
-当前全部为 **todo**。完成一项后请同步改 JSON 的 `status`，并把下面相应行改为 `[x]`。
+当前进度：P0 **F-000** 已完成。完成一项后请同步改 JSON 的 `status`，并把下面相应行改为 `[x]`。
 
 ## P0 骨架
 
-- [ ] **F-000** Monorepo 骨架（pnpm/Turbo/Cargo） — [18-monorepo](03-features/18-monorepo.md)
+- [x] **F-000** Monorepo 骨架（pnpm/Turbo/Cargo） — [18-monorepo](03-features/18-monorepo.md)
 - [ ] **F-001** core 类型与对象键生成 — [协议](02-storage-protocol.md)（依赖 F-000）；prefix 默认空，协议根固定 `.artstock/v1/`
 - [ ] **F-002** S3 适配接口 + mock — [01-remotes](03-features/01-remotes.md)（F-001）
 - [ ] **F-003** 全局写锁 `withRemoteLock` — [协议](02-storage-protocol.md)（F-002）
