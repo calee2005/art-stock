@@ -91,7 +91,9 @@ import {
   type EinkSummary,
   PLACEHOLDER_WEBP,
   LOCAL_PIN_STORAGE_KEY,
+  WIFI_ONLY_ORIGINAL,
   addPin,
+  defaultOriginalDownloadPolicy,
   fetchOriginalOnDemand,
   hasPin,
   parsePins,
@@ -259,6 +261,12 @@ export function App() {
   const [assetSearch, setAssetSearch] = useState("");
   const [selectedAssetId, setSelectedAssetId] = useState("");
   const [inboxItems, setInboxItems] = useState<{ name: string; size: number; mimeGuess?: string }[]>([]);
+  const [wifiOnlyOriginals, setWifiOnlyOriginals] = useState(
+    () => defaultOriginalDownloadPolicy(padHost).wifiOnly,
+  );
+  const [networkKind, setNetworkKind] = useState<
+    "wifi" | "cellular" | "other" | "offline"
+  >("wifi");
   const [mdSource, setMdSource] = useState("");
   const [mdHtml, setMdHtml] = useState("");
   const [mdEditorKey, setMdEditorKey] = useState(0);
@@ -377,6 +385,19 @@ export function App() {
         if (!invoke || cancelled) {
           return;
         }
+        try {
+          const kind = String((await invoke("network_kind")) ?? "wifi");
+          if (
+            kind === "wifi" ||
+            kind === "cellular" ||
+            kind === "other" ||
+            kind === "offline"
+          ) {
+            setNetworkKind(kind);
+          }
+        } catch {
+          setNetworkKind("wifi");
+        }
         const listed = await listPadInbox(invoke);
         setInboxItems(listed);
         const share = await loadPadShareE2eConfig(invoke);
@@ -403,6 +424,85 @@ export function App() {
             },
             invoke,
           );
+        }
+        const wifiE2e = (await invoke("pad_wifi_e2e_config")) as {
+          network?: string;
+        } | null;
+        if (wifiE2e) {
+          const json = JSON.stringify(wifiE2e);
+          if (json.toLowerCase().includes("secretaccesskey") || json.includes("super-secret")) {
+            throw new Error("pad-wifi-e2e.json must not contain secrets");
+          }
+          const simulated = (wifiE2e.network ?? "cellular") as
+            | "wifi"
+            | "cellular"
+            | "other"
+            | "offline";
+          let assetsListed = await listAssets(
+            activeStore(current),
+            formToConfig(current).prefix,
+          );
+          if (assetsListed.length === 0) {
+            await importAsset(
+              {
+                store: activeStore(current),
+                prefix: formToConfig(current).prefix,
+                deviceId: device.deviceId,
+                deviceName: "pad",
+              },
+              {
+                name: "meta-only.png",
+                bytes: PLACEHOLDER_WEBP,
+                mimeType: "image/webp",
+              },
+            );
+            assetsListed = await listAssets(
+              activeStore(current),
+              formToConfig(current).prefix,
+            );
+          }
+          const first = assetsListed[0];
+          if (!first) {
+            throw new Error("wifi e2e needs at least one asset for metadata");
+          }
+          let blocked = false;
+          try {
+            await fetchOriginalOnDemand(
+              activeStore(current),
+              formToConfig(current).prefix,
+              originalCache,
+              {
+                kind: "asset",
+                id: first.id,
+                blobSha256: first.blobSha256,
+                folderId: first.folderId,
+              },
+              pins,
+              { wifiOnly: true, network: simulated },
+            );
+          } catch (error) {
+            blocked =
+              error instanceof Error && error.message.includes(WIFI_ONLY_ORIGINAL);
+          }
+          const metadataStill = await listAssets(
+            activeStore(current),
+            formToConfig(current).prefix,
+          );
+          const payload = {
+            ok: blocked && metadataStill.length > 0,
+            blocked,
+            network: simulated,
+            metadataCount: metadataStill.length,
+            wifiOnly: true,
+          };
+          const raw = JSON.stringify(payload);
+          if (raw.toLowerCase().includes("secretaccesskey")) {
+            throw new Error("pad-wifi-e2e-status must not contain secrets");
+          }
+          await invoke("pad_wifi_e2e_report", { status: payload });
+          if (blocked) {
+            setStatus("蜂窝网络下已拦截原图下载，元数据仍可浏览");
+          }
         }
       } catch (error) {
         const message = redactSecrets(
@@ -2306,6 +2406,17 @@ export function App() {
         </section>
       ) : null}
       <h2 id="pane-assets">素材</h2>
+      <p>
+        <label>
+          <input
+            type="checkbox"
+            data-testid="pad-wifi-only"
+            checked={wifiOnlyOriginals}
+            onChange={(e) => setWifiOnlyOriginals(e.target.checked)}
+          />
+          仅 Wi-Fi 下载原图（Pad 默认开）
+        </label>
+      </p>
       {padHost ? (
         <section data-testid="pad-inbox">
           <h3>收件箱</h3>
@@ -2469,11 +2580,22 @@ export function App() {
                     folderId: asset.folderId,
                   },
                   pins,
-                ).then((result) => {
-                  setStatus(
-                    `已按需取回 ${asset.name}（${result.bytes.byteLength} 字节）`,
-                  );
-                });
+                  { wifiOnly: wifiOnlyOriginals, network: networkKind },
+                )
+                  .then((result) => {
+                    setStatus(
+                      `已按需取回 ${asset.name}（${result.bytes.byteLength} 字节）`,
+                    );
+                  })
+                  .catch((error: unknown) => {
+                    const message =
+                      error instanceof Error ? error.message : String(error);
+                    setStatus(
+                      message.includes(WIFI_ONLY_ORIGINAL)
+                        ? "蜂窝网络下已拦截原图下载，元数据仍可浏览"
+                        : message,
+                    );
+                  });
               }}
             >
               取回原图

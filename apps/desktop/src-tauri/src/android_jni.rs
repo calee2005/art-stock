@@ -16,6 +16,7 @@ struct AndroidJni {
     context: jni::objects::GlobalRef,
     keystore: jni::objects::GlobalRef,
     sandbox: jni::objects::GlobalRef,
+    network: jni::objects::GlobalRef,
 }
 
 static ANDROID_JNI: Mutex<Option<AndroidJni>> = Mutex::new(None);
@@ -24,6 +25,7 @@ pub(crate) struct JniHandles<'a> {
     pub context: &'a JObject<'a>,
     pub keystore: &'a JClass<'a>,
     pub sandbox: &'a JClass<'a>,
+    pub network: &'a JClass<'a>,
 }
 
 pub(crate) fn files_dir() -> Result<std::path::PathBuf, String> {
@@ -44,6 +46,27 @@ pub(crate) fn files_dir() -> Result<std::path::PathBuf, String> {
             .to_string_lossy()
             .into_owned();
         Ok(std::path::PathBuf::from(text))
+    })
+}
+
+pub(crate) fn network_kind() -> Result<String, String> {
+    with_jni(|env, handles| {
+        let result = env
+            .call_static_method(
+                handles.network,
+                "current",
+                "(Landroid/content/Context;)Ljava/lang/String;",
+                &[jni::objects::JValue::Object(handles.context)],
+            )
+            .map_err(|err| err.to_string())?;
+        check_exception(env)?;
+        let obj = result.l().map_err(|err| err.to_string())?;
+        let text = env
+            .get_string(&jni::objects::JString::from(obj))
+            .map_err(|err| err.to_string())?
+            .to_string_lossy()
+            .into_owned();
+        Ok(text)
     })
 }
 
@@ -71,12 +94,15 @@ pub(crate) fn with_jni<T>(
     let context = jni.context.as_obj();
     let keystore_obj = jni.keystore.as_obj();
     let sandbox_obj = jni.sandbox.as_obj();
+    let network_obj = jni.network.as_obj();
     let keystore: &JClass = <&JClass>::from(keystore_obj);
     let sandbox: &JClass = <&JClass>::from(sandbox_obj);
+    let network: &JClass = <&JClass>::from(network_obj);
     let handles = JniHandles {
         context,
         keystore,
         sandbox,
+        network,
     };
     f(&mut env, handles)
 }
@@ -92,12 +118,18 @@ fn attach_from_jni(env: &mut JNIEnv, context: JObject) -> Result<(), String> {
     let sandbox = env
         .find_class("app/artstock/desktop/SandboxStore")
         .map_err(|err| err.to_string())?;
+    let network = env
+        .find_class("app/artstock/desktop/NetworkKind")
+        .map_err(|err| err.to_string())?;
     check_exception(env)?;
     let keystore = env
         .new_global_ref(&keystore)
         .map_err(|err| err.to_string())?;
     let sandbox = env
         .new_global_ref(&sandbox)
+        .map_err(|err| err.to_string())?;
+    let network = env
+        .new_global_ref(&network)
         .map_err(|err| err.to_string())?;
     let mut slot = ANDROID_JNI
         .lock()
@@ -107,6 +139,7 @@ fn attach_from_jni(env: &mut JNIEnv, context: JObject) -> Result<(), String> {
         context: global_ctx,
         keystore,
         sandbox,
+        network,
     });
     Ok(())
 }

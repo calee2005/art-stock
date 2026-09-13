@@ -78,6 +78,18 @@ fn reclaim_cache(app: tauri::AppHandle) -> Result<(), String> {
     sandbox::reclaim_cache(&paths)
 }
 
+#[tauri::command]
+fn network_kind() -> Result<String, String> {
+    #[cfg(target_os = "android")]
+    {
+        crate::android_jni::network_kind()
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        Ok("wifi".into())
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -97,9 +109,12 @@ pub fn run() {
             pad_e2e::pad_e2e_report,
             pad_e2e::pad_share_e2e_config,
             pad_e2e::pad_share_e2e_report,
+            pad_e2e::pad_wifi_e2e_config,
+            pad_e2e::pad_wifi_e2e_report,
             inbox::inbox_list,
             inbox::inbox_read,
-            inbox::inbox_remove
+            inbox::inbox_remove,
+            network_kind
         ])
         .run(tauri::generate_context!())
         .expect("error while running Art Stock");

@@ -89,15 +89,54 @@ export function originalCacheKey(ref: Pick<OriginalRef, "kind" | "id">): string 
 
 export type LocalOriginalCache = Map<string, Uint8Array>;
 
+export type NetworkKind = "wifi" | "cellular" | "other" | "offline";
+
+export type OriginalDownloadPolicy = {
+  wifiOnly: boolean;
+};
+
+export const WIFI_ONLY_ORIGINAL = "WIFI_ONLY";
+
+export function defaultOriginalDownloadPolicy(pad: boolean): OriginalDownloadPolicy {
+  return { wifiOnly: pad };
+}
+
+export function allowOriginalDownload(
+  policy: OriginalDownloadPolicy,
+  network: NetworkKind,
+  alreadyCached: boolean,
+): boolean {
+  if (alreadyCached) {
+    return true;
+  }
+  if (network === "offline") {
+    return false;
+  }
+  if (!policy.wifiOnly) {
+    return true;
+  }
+  return network === "wifi";
+}
+
 export async function fetchOriginalOnDemand(
   store: ObjectStore,
   prefix: string,
   cache: LocalOriginalCache,
   ref: OriginalRef,
   pins: readonly Pin[],
-  options?: { pin?: boolean },
+  options?: {
+    pin?: boolean;
+    wifiOnly?: boolean;
+    network?: NetworkKind;
+  },
 ): Promise<{ bytes: Uint8Array; pins: Pin[] }> {
   const key = originalCacheKey(ref);
+  const cached = cache.has(key);
+  const policy = { wifiOnly: options?.wifiOnly === true };
+  const network = options?.network ?? "wifi";
+  if (!allowOriginalDownload(policy, network, cached)) {
+    throw new Error(WIFI_ONLY_ORIGINAL);
+  }
   let bytes = cache.get(key);
   if (!bytes) {
     const got = await store.get(blobKey(prefix, ref.blobSha256));

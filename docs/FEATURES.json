@@ -386,7 +386,7 @@
       "id": "F-046",
       "name": "仅 Wi-Fi 下载原文件（Pad 默认开）",
       "phase": "P4",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-023", "F-044"],
       "apps": ["android"],
       "designDoc": "docs/03-features/16-android-pad.md",

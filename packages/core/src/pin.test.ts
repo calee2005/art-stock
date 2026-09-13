@@ -82,3 +82,42 @@ test("unpinned cache has thumb/meta only; fetch then purge keeps remote blob", a
   assert.equal(cache.size, 0);
   assert.ok(await store.get(blobKey("", item.blobSha256)));
 });
+
+test("Pad wifi-only policy blocks cellular original fetch but cache hit still works", async () => {
+  const store = new MemoryObjectStore();
+  const remote = { store, deviceId: "a", deviceName: "a", prefix: "" };
+  const item = await importAsset(remote, {
+    name: "hero.png",
+    bytes: PNG_1X1,
+    mimeType: "image/png",
+    thumbBytes: PLACEHOLDER_WEBP,
+  });
+  const device = createDeviceAssetCache();
+  await hydrateAssetCache(store, "", device);
+  assert.equal(device.thumbs.size, 1);
+  assert.equal(device.originals.size, 0);
+  const ref = {
+    kind: "asset" as const,
+    id: item.id,
+    blobSha256: item.blobSha256,
+  };
+  const empty = new Map<string, Uint8Array>();
+  await assert.rejects(
+    () =>
+      fetchOriginalOnDemand(store, "", empty, ref, [], {
+        wifiOnly: true,
+        network: "cellular",
+      }),
+    /WIFI_ONLY/,
+  );
+  assert.equal(empty.size, 0);
+  const wifi = await fetchOriginalOnDemand(store, "", empty, ref, [], {
+    wifiOnly: true,
+    network: "wifi",
+  });
+  assert.equal(wifi.bytes.byteLength, PNG_1X1.byteLength);
+  await fetchOriginalOnDemand(store, "", empty, ref, [], {
+    wifiOnly: true,
+    network: "cellular",
+  });
+});

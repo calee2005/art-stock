@@ -244,7 +244,10 @@ export {
 
 export {
   LOCAL_PIN_STORAGE_KEY,
+  WIFI_ONLY_ORIGINAL,
   addPin,
+  allowOriginalDownload,
+  defaultOriginalDownloadPolicy,
   fetchOriginalOnDemand,
   hasPin,
   isOriginalPinned,
@@ -255,6 +258,8 @@ export {
   removePin,
   serializePins,
   type LocalOriginalCache,
+  type NetworkKind,
+  type OriginalDownloadPolicy,
   type OriginalRef,
   type Pin,
   type PinScope,
