@@ -50,7 +50,7 @@ Agent 以 [FEATURES.json](FEATURES.json) 为任务源，本文件为可读勾选
 
 ## P5 创作工具
 
-- [ ] **F-050** Markdown WYSIWYG / TOC / 素材 — [06-markdown](03-features/06-markdown.md)
+- [x] **F-050** Markdown WYSIWYG / TOC / 素材 — [06-markdown](03-features/06-markdown.md)
 - [ ] **F-051** PDF 翻页 — [07-pdf](03-features/07-pdf.md)
 - [ ] **F-052** 思维导图 JSON — [08-mindmap](03-features/08-mindmap.md)
 

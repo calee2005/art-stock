@@ -36,6 +36,12 @@ import {
   listSnapshots,
   rollbackBranch,
   switchDefaultBranch,
+  readBranchBytes,
+  markdownToHtml,
+  htmlToMarkdown,
+  markdownToc,
+  insertAssetEmbed,
+  assetThumbKey,
   importAsset,
   listAssets,
   listAssetFolders,
@@ -152,6 +158,9 @@ export function App() {
   const [assetTagDraft, setAssetTagDraft] = useState("");
   const [assetTagFilter, setAssetTagFilter] = useState("");
   const [selectedAssetId, setSelectedAssetId] = useState("");
+  const [mdSource, setMdSource] = useState("");
+  const [mdHtml, setMdHtml] = useState("");
+  const [mdEditorKey, setMdEditorKey] = useState(0);
   const [pins, setPins] = useState<Pin[]>(() => {
     try {
       const raw = storage.getItem(LOCAL_PIN_STORAGE_KEY);
@@ -466,11 +475,37 @@ export function App() {
     );
   }
 
+  async function loadMarkdown(objectId: string) {
+    const prefix = formToConfig(form).prefix;
+    const store = activeStore(form);
+    const doc = await readBranchBytes(store, prefix, objectId);
+    if (!doc) {
+      setMdSource("");
+      setMdHtml("");
+      return;
+    }
+    const text = new TextDecoder().decode(doc.bytes);
+    const thumbs: Record<string, string> = {};
+    for (const asset of await listAssets(store, prefix)) {
+      const thumb = await store.get(assetThumbKey(prefix, asset.id));
+      if (thumb) {
+        thumbs[asset.id] = URL.createObjectURL(
+          new Blob([thumb.body], { type: "image/webp" }),
+        );
+      }
+    }
+    setMdSource(text);
+    setMdHtml(markdownToHtml(text, (id) => thumbs[id] ?? null));
+    setMdEditorKey((value) => value + 1);
+  }
+
   function clearVersionUi() {
     setSnapshots([]);
     setBranches([]);
     setDefaultBranch("main");
     setActiveBranch("main");
+    setMdSource("");
+    setMdHtml("");
   }
 
   async function onCommitSnapshot() {
@@ -920,6 +955,12 @@ export function App() {
                       setSelectedNodeId(node.id);
                       if (node.objectId) {
                         void refreshSnapshots(node.objectId);
+                        if (/\.(md|markdown)$/i.test(node.name)) {
+                          void loadMarkdown(node.objectId);
+                        } else {
+                          setMdSource("");
+                          setMdHtml("");
+                        }
                       } else {
                         clearVersionUi();
                       }
@@ -1058,6 +1099,95 @@ export function App() {
                   </li>
                 ))}
               </ul>
+              {/\.(md|markdown)$/i.test(
+                treeNodes.find((node) => node.id === selectedNodeId)?.name ?? "",
+              ) ? (
+                <div>
+                  <h3>Markdown</h3>
+                  <nav aria-label="文稿目录">
+                    {markdownToc(mdSource).map((entry) => (
+                      <button
+                        key={entry.id}
+                        type="button"
+                        onClick={() =>
+                          document.getElementById(entry.id)?.scrollIntoView({
+                            behavior: "smooth",
+                            block: "start",
+                          })
+                        }
+                      >
+                        {entry.text}
+                      </button>
+                    ))}
+                  </nav>
+                  <div
+                    key={mdEditorKey}
+                    contentEditable
+                    suppressContentEditableWarning
+                    dangerouslySetInnerHTML={{ __html: mdHtml }}
+                    onBlur={(event) => {
+                      const next = htmlToMarkdown(event.currentTarget.innerHTML);
+                      setMdSource(next);
+                    }}
+                    style={{
+                      minHeight: 120,
+                      border: "1px solid #ccc",
+                      padding: 8,
+                    }}
+                  />
+                  <p>
+                    插入素材
+                    <select
+                      defaultValue=""
+                      onChange={(event) => {
+                        const assetId = event.target.value;
+                        if (!assetId) {
+                          return;
+                        }
+                        const asset = assets.find((item) => item.id === assetId);
+                        const next = insertAssetEmbed(
+                          mdSource,
+                          assetId,
+                          asset?.name ?? "",
+                        );
+                        setMdSource(next);
+                        setMdHtml(markdownToHtml(next, () => null));
+                        setMdEditorKey((value) => value + 1);
+                        event.target.value = "";
+                      }}
+                    >
+                      <option value="">选择素材</option>
+                      {assets.map((asset) => (
+                        <option key={asset.id} value={asset.id}>
+                          {asset.name}
+                        </option>
+                      ))}
+                    </select>
+                  </p>
+                  <button
+                    type="button"
+                    disabled={!canWrite}
+                    onClick={() => {
+                      const node = treeNodes.find((item) => item.id === selectedNodeId);
+                      if (!node?.objectId) {
+                        return;
+                      }
+                      void commitSnapshot(
+                        lockTarget(),
+                        node.objectId,
+                        new TextEncoder().encode(mdSource),
+                        "markdown",
+                        activeBranch,
+                      ).then((snap) => {
+                        setStatus(`已保存 Markdown 快照 ${snap.id.slice(0, 8)}`);
+                        return refreshSnapshots(node.objectId!);
+                      });
+                    }}
+                  >
+                    保存 Markdown
+                  </button>
+                </div>
+              ) : null}
             </section>
           ) : null}
           <form

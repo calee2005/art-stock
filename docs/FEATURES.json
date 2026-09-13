@@ -394,7 +394,7 @@
       "id": "F-050",
       "name": "Markdown WYSIWYG、TOC、插入素材",
       "phase": "P5",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-012", "F-030"],
       "apps": ["web", "desktop", "android"],
       "designDoc": "docs/03-features/06-markdown.md",
@@ -403,7 +403,7 @@
         "TOC 跳转",
         "artstock://asset/{id} 不发公网"
       ],
-      "notes": ""
+      "notes": "markdownToHtml/htmlToMarkdown + TOC; artstock://asset resolved only via local resolver (rejects http). WYSIWYG contenteditable saves md blob through commitSnapshot/withRemoteLock."
     },
     {
       "id": "F-051",

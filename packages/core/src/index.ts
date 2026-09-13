@@ -200,6 +200,7 @@ export {
   listBranches,
   listConflictBranches,
   listSnapshots,
+  readBranchBytes,
   rollbackBranch,
   switchDefaultBranch,
   validateBranchName,
@@ -257,3 +258,17 @@ export {
   type Pin,
   type PinScope,
 } from "./pin.ts";
+
+export {
+  ARTSTOCK_ASSET_PREFIX,
+  artstockAssetUrl,
+  htmlToMarkdown,
+  insertAssetEmbed,
+  isPublicNetworkUrl,
+  markdownToHtml,
+  markdownToc,
+  parseArtstockAssetId,
+  resolveMarkdownMediaSrc,
+  slugifyHeading,
+  type TocEntry,
+} from "./markdown.ts";
