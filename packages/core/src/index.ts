@@ -121,6 +121,7 @@ export {
   listWorkspaces,
   readKanbanIndex,
   updateItem,
+  moveItem,
   type CreateItemInput,
   type UpdateItemPatch,
 } from "./kanban.ts";

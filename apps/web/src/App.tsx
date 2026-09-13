@@ -27,6 +27,7 @@ import {
   listLists,
   listItems,
   createItem,
+  moveItem,
   type ImportQueue,
   type SyncState,
   type ObjectStore,
@@ -95,6 +96,7 @@ export function App() {
   const [itemCover, setItemCover] = useState("");
   const [itemAttachments, setItemAttachments] = useState("");
   const [itemListId, setItemListId] = useState("");
+  const [detailItemId, setDetailItemId] = useState<string | null>(null);
   const device = useMemo(() => deviceIdentity(storage), []);
   const preview = useMemo(
     () => protocolRoot(form.prefix),
@@ -436,6 +438,15 @@ export function App() {
     });
     setItemTitle("");
     setStatus(`已创建 Item ${created.title}`);
+    await openBoard(selectedBoardId);
+  }
+
+  async function onDropItem(listId: string, itemId: string) {
+    if (!canWrite || !selectedBoardId) {
+      return;
+    }
+    await moveItem(lockTarget(), itemId, listId);
+    setStatus(`已移动卡片到另一列`);
     await openBoard(selectedBoardId);
   }
 
@@ -838,16 +849,36 @@ export function App() {
       {selectedBoardId ? (
         <section>
           <h3>Board {selectedBoardId.slice(0, 8)}（四层：Workspace → Board → List → Item）</h3>
-          <div style={{ display: "flex", gap: "1rem", overflowX: "auto" }}>
+          <p>拖拽卡片到其它 List；窄屏横向滑列，点卡片开全屏详情。</p>
+          <div className="kanban-lists">
             {lists.map((list) => (
-              <div key={list.id} style={{ minWidth: 180, border: "1px solid #ccc", padding: "0.5rem" }}>
+              <div
+                key={list.id}
+                className="kanban-list"
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  const itemId = event.dataTransfer.getData("text/plain");
+                  if (itemId) {
+                    void onDropItem(list.id, itemId);
+                  }
+                }}
+              >
                 <strong>{list.name}</strong>
                 <ul>
                   {items
                     .filter((item) => item.listId === list.id)
                     .map((item) => (
-                      <li key={item.id}>
-                        {item.title}
+                      <li
+                        key={item.id}
+                        draggable={canWrite}
+                        onDragStart={(event) => {
+                          event.dataTransfer.setData("text/plain", item.id);
+                        }}
+                      >
+                        <button type="button" onClick={() => setDetailItemId(item.id)}>
+                          {item.title}
+                        </button>
                         {item.dueAt ? ` · ${item.dueAt.slice(0, 10)}` : ""}
                         {item.coverAssetId ? " · 封面" : ""}
                         {item.attachmentObjectIds?.length
@@ -859,6 +890,34 @@ export function App() {
               </div>
             ))}
           </div>
+          {detailItemId ? (
+            <div className="kanban-detail" role="dialog">
+              <h4>Item 详情</h4>
+              <p>{items.find((item) => item.id === detailItemId)?.title}</p>
+              <p>{items.find((item) => item.id === detailItemId)?.descriptionMarkdown}</p>
+              <label>
+                移到
+                <select
+                  value={items.find((item) => item.id === detailItemId)?.listId ?? ""}
+                  onChange={(event) => {
+                    const listId = event.target.value;
+                    if (listId) {
+                      void onDropItem(listId, detailItemId);
+                    }
+                  }}
+                >
+                  {lists.map((list) => (
+                    <option key={list.id} value={list.id}>
+                      {list.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button type="button" onClick={() => setDetailItemId(null)}>
+                关闭
+              </button>
+            </div>
+          ) : null}
           <form
             onSubmit={(event) => {
               event.preventDefault();
@@ -920,6 +979,14 @@ export function App() {
         label { display: block; margin: 0.4rem 0; }
         input[type="text"], input:not([type]), input[type="password"] { width: 100%; }
         button { margin-right: 0.5rem; min-height: 44px; }
+        .kanban-lists { display: flex; gap: 1rem; overflow-x: auto; }
+        .kanban-list { min-width: 180px; border: 1px solid #ccc; padding: 0.5rem; flex: 0 0 220px; }
+        .kanban-detail { margin-top: 1rem; padding: 1rem; border: 1px solid #333; background: #fafafa; }
+        @media (max-width: 720px) {
+          .kanban-lists { scroll-snap-type: x mandatory; }
+          .kanban-list { min-width: 80vw; scroll-snap-align: start; }
+          .kanban-detail { position: fixed; inset: 0; z-index: 5; overflow: auto; }
+        }
       `}</style>
     </div>
   );

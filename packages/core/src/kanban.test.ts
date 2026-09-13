@@ -14,6 +14,7 @@ import {
   listWorkspaces,
   readKanbanIndex,
   updateItem,
+  moveItem,
 } from "./kanban.ts";
 import type { ObjectStore, PutOptions } from "./index.ts";
 
@@ -136,4 +137,25 @@ test("kanban writes go through the lock and update index.json", async () => {
   await createWorkspace(remote, "侧栏");
   assert.ok(lockOnIndex.every(Boolean));
   assert.equal(await inner.get(lockKey("")), null);
+});
+
+test("moving an item to another list survives reload", async () => {
+  const store = new MemoryObjectStore();
+  const remote = device(store);
+  const ws = await createWorkspace(remote, "项目");
+  const board = await createBoard(remote, ws.id, "开发");
+  const lists = await listLists(store, "", board.id);
+  const todo = lists[0];
+  const doing = lists[1];
+  assert.ok(todo && doing);
+  const item = await createItem(remote, {
+    boardId: board.id,
+    listId: todo.id,
+    title: "可拖卡片",
+  });
+  await moveItem(remote, item.id, doing.id);
+  const after = await getItem(store, "", item.id);
+  assert.equal(after?.listId, doing.id);
+  assert.equal((await listItems(store, "", todo.id)).length, 0);
+  assert.equal((await listItems(store, "", doing.id))[0]?.title, "可拖卡片");
 });

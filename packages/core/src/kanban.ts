@@ -438,3 +438,37 @@ export async function updateItem(
     lockOpts(options),
   );
 }
+
+export async function moveItem(
+  remote: RemoteLockTarget,
+  itemId: string,
+  newListId: string,
+  order?: number,
+  options?: WithRemoteLockOptions,
+): Promise<KanbanItem> {
+  const prefix = remote.prefix ?? "";
+  return withRemoteLock(
+    remote,
+    "sync",
+    async () => {
+      const key = kanbanItemKey(prefix, itemId);
+      const got = await remote.store.get(key);
+      if (!got) {
+        throw new Error(`Item not found: ${itemId}`);
+      }
+      const item = decodeJson(got.body) as KanbanItem;
+      const siblings = (await listItems(remote.store, prefix, newListId)).filter(
+        (other) => other.id !== itemId,
+      );
+      item.listId = newListId;
+      item.order = order ?? siblings.length;
+      item.updatedAt = nowIso();
+      await remote.store.put(key, encodeJson(item), {
+        contentType: "application/json",
+        ifMatch: got.etag,
+      });
+      return item;
+    },
+    lockOpts(options),
+  );
+}
