@@ -4,7 +4,7 @@ Agent 以 [FEATURES.json](FEATURES.json) 为任务源，本文件为可读勾选
 
 领取规则见 [AGENTS.md](../AGENTS.md)。阶段说明见 [04-roadmap.md](04-roadmap.md)。
 
-当前进度：P0 已完成；P1 **F-010**–**F-015** 已完成；P6 **F-060**–**F-062** 已完成。完成一项后请同步改 JSON 的 `status`，并把下面相应行改为 `[x]`。
+当前进度：P0 已完成；P1 **F-010**–**F-015** 已完成；P4 **F-040** 已完成；P6 **F-060**–**F-062** 已完成。完成一项后请同步改 JSON 的 `status`，并把下面相应行改为 `[x]`。
 
 ## P0 骨架
 
@@ -40,7 +40,7 @@ Agent 以 [FEATURES.json](FEATURES.json) 为任务源，本文件为可读勾选
 
 ## P4 快照、冲突、钉选
 
-- [ ] **F-040** 手动 snapshot 与回滚 — [03-artwork-versions](03-features/03-artwork-versions.md)
+- [x] **F-040** 手动 snapshot 与回滚 — [03-artwork-versions](03-features/03-artwork-versions.md)
 - [ ] **F-041** 桌面监视自动快照（F-040, F-014）
 - [ ] **F-042** 命名分支（F-040）
 - [ ] **F-043** 分叉生成 `conflict/*`（F-042）

@@ -307,7 +307,7 @@
       "id": "F-040",
       "name": "手动 snapshot 与历史回滚",
       "phase": "P4",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-012"],
       "apps": ["web", "desktop", "core"],
       "designDoc": "docs/03-features/03-artwork-versions.md",
@@ -316,7 +316,7 @@
         "回滚只改分支指针不删历史",
         "blob 不可变"
       ],
-      "notes": ""
+      "notes": "commitSnapshot/rollbackBranch via withRemoteLock; rollback only If-Match branch pointer; blobs never overwritten."
     },
     {
       "id": "F-041",
