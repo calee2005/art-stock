@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   MemoryObjectStore,
   createFolder,
@@ -59,6 +59,14 @@ import {
   setAssetRating,
   assetsMatchingTags,
   searchAssets,
+  addMindChild,
+  createMindDoc,
+  encodeMindDoc,
+  isMindmapName,
+  parseMindDoc,
+  setMindNodeText,
+  type MindDoc,
+  type MindNode,
   PLACEHOLDER_WEBP,
   LOCAL_PIN_STORAGE_KEY,
   addPin,
@@ -108,6 +116,50 @@ function activeStore(_form: RemoteForm): ObjectStore {
   // Real HTTP S3 client is still stubbed (F-002). Web uses an in-memory
   // store so list/get/locked PUT can be exercised without a backend.
   return demoStore;
+}
+
+function MindTree(props: {
+  node: MindNode;
+  depth: number;
+  selectedId: string;
+  onSelect: (id: string) => void;
+  onRename: (id: string, text: string) => void;
+}): ReactNode {
+  return (
+    <li style={{ marginLeft: props.depth * 16 }}>
+      <button
+        type="button"
+        data-testid={`mind-node-${props.depth}`}
+        onClick={() => props.onSelect(props.node.id)}
+        onDoubleClick={() => {
+          const next = window.prompt("节点文本", props.node.text);
+          if (next != null) {
+            props.onRename(props.node.id, next);
+          }
+        }}
+        style={{
+          fontWeight: props.selectedId === props.node.id ? 700 : 400,
+          minHeight: 44,
+        }}
+      >
+        {props.node.text}
+      </button>
+      {props.node.children.length > 0 ? (
+        <ul>
+          {props.node.children.map((child) => (
+            <MindTree
+              key={child.id}
+              node={child}
+              depth={props.depth + 1}
+              selectedId={props.selectedId}
+              onSelect={props.onSelect}
+              onRename={props.onRename}
+            />
+          ))}
+        </ul>
+      ) : null}
+    </li>
+  );
 }
 
 export function App() {
@@ -174,6 +226,8 @@ export function App() {
   const [pdfViewer, setPdfViewer] = useState<PdfViewer | null>(null);
   const [pdfZoom, setPdfZoom] = useState(1);
   const [pdfSwipeX, setPdfSwipeX] = useState<number | null>(null);
+  const [mindDoc, setMindDoc] = useState<MindDoc | null>(null);
+  const [mindSelectedId, setMindSelectedId] = useState("");
   const [pins, setPins] = useState<Pin[]>(() => {
     try {
       const raw = storage.getItem(LOCAL_PIN_STORAGE_KEY);
@@ -572,6 +626,24 @@ export function App() {
     setPdfViewer(goToPdfPage(pdfViewer, page));
   }
 
+  async function loadMindmap(objectId: string) {
+    const prefix = formToConfig(form).prefix;
+    const store = activeStore(form);
+    const doc = await readBranchBytes(store, prefix, objectId);
+    if (!doc) {
+      setMindDoc(null);
+      return;
+    }
+    try {
+      const parsed = parseMindDoc(doc.bytes);
+      setMindDoc(parsed);
+      setMindSelectedId(parsed.root.id);
+    } catch (error) {
+      setMindDoc(null);
+      setStatus(error instanceof Error ? error.message : "导图 JSON 无效");
+    }
+  }
+
   function clearVersionUi() {
     setSnapshots([]);
     setBranches([]);
@@ -581,6 +653,8 @@ export function App() {
     setMdHtml("");
     setPdfViewer(null);
     setPdfZoom(1);
+    setMindDoc(null);
+    setMindSelectedId("");
   }
 
   async function onCommitSnapshot() {
@@ -1032,15 +1106,23 @@ export function App() {
                         void refreshSnapshots(node.objectId);
                         if (/\.(md|markdown)$/i.test(node.name)) {
                           setPdfViewer(null);
+                          setMindDoc(null);
                           void loadMarkdown(node.objectId);
                         } else if (isPdfName(node.name)) {
                           setMdSource("");
                           setMdHtml("");
+                          setMindDoc(null);
                           void loadPdfPlaceholder(node.objectId);
+                        } else if (isMindmapName(node.name)) {
+                          setMdSource("");
+                          setMdHtml("");
+                          setPdfViewer(null);
+                          void loadMindmap(node.objectId);
                         } else {
                           setMdSource("");
                           setMdHtml("");
                           setPdfViewer(null);
+                          setMindDoc(null);
                         }
                       } else {
                         clearVersionUi();
@@ -1381,6 +1463,70 @@ export function App() {
                     </>
                   )}
                 </div>
+              ) : isMindmapName(
+                  treeNodes.find((node) => node.id === selectedNodeId)?.name ??
+                    "",
+                ) ? (
+                <div data-testid="mindmap-editor">
+                  <h3>思维导图</h3>
+                  <p>存盘为 schemaVersion=1 的 JSON blob，不是私有二进制。Pad 双击编辑。</p>
+                  {mindDoc ? (
+                    <>
+                      <ul data-testid="mindmap-tree">
+                        <MindTree
+                          node={mindDoc.root}
+                          depth={0}
+                          selectedId={mindSelectedId}
+                          onSelect={setMindSelectedId}
+                          onRename={(id, text) =>
+                            setMindDoc(setMindNodeText(mindDoc, id, text))
+                          }
+                        />
+                      </ul>
+                      <button
+                        type="button"
+                        data-testid="mind-add-child"
+                        disabled={!canWrite || !mindSelectedId}
+                        onClick={() => {
+                          setMindDoc(
+                            addMindChild(mindDoc, mindSelectedId, "新节点"),
+                          );
+                        }}
+                      >
+                        添加子节点
+                      </button>
+                      <button
+                        type="button"
+                        data-testid="mind-save"
+                        disabled={!canWrite}
+                        onClick={() => {
+                          const node = treeNodes.find(
+                            (item) => item.id === selectedNodeId,
+                          );
+                          if (!node?.objectId) {
+                            return;
+                          }
+                          void commitSnapshot(
+                            lockTarget(),
+                            node.objectId,
+                            encodeMindDoc(mindDoc),
+                            "mindmap",
+                            activeBranch,
+                          ).then((snap) => {
+                            setStatus(
+                              `已保存思维导图快照 ${snap.id.slice(0, 8)}（JSON）`,
+                            );
+                            return refreshSnapshots(node.objectId!);
+                          });
+                        }}
+                      >
+                        保存导图
+                      </button>
+                    </>
+                  ) : (
+                    <p>无法解析 JSON</p>
+                  )}
+                </div>
               ) : null}
             </section>
           ) : null}
@@ -1486,6 +1632,20 @@ export function App() {
               }}
             >
               导入示例双页 PDF
+            </button>
+            <button
+              type="button"
+              data-testid="import-sample-mindmap"
+              disabled={!canWrite || !selectedLibraryId}
+              onClick={() => {
+                const bytes = encodeMindDoc(createMindDoc("根"));
+                const file = new File([Uint8Array.from(bytes)], "plot.mindmap", {
+                  type: "application/json",
+                });
+                void onPickFile(file);
+              }}
+            >
+              新建思维导图
             </button>
           </p>
         </section>

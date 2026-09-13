@@ -9,6 +9,9 @@ import {
   listSnapshots,
   MemoryObjectStore,
   encodeMinimalPdf,
+  encodeMindDoc,
+  createMindDoc,
+  addMindChild,
 } from "@art-stock/core";
 import {
   createDesktopFileWatch,
@@ -21,6 +24,7 @@ import {
   preparePdfOnDesktop,
   saveDesktopRemote,
   sqliteQueryAssets,
+  parseMindDocOnDesktop,
   type SecureStore,
 } from "./host.ts";
 
@@ -184,4 +188,14 @@ test("desktop sqlite FTS MATCH returns name and tag subsets", () => {
     sqliteQueryAssets(assets, "角色").map((item) => item.id),
     ["a"],
   );
+});
+
+test("desktop mindmap bytes are documented JSON", () => {
+  let doc = createMindDoc("根");
+  doc = addMindChild(doc, doc.root.id, "一层");
+  doc = addMindChild(doc, doc.root.children[0]!.id, "二层");
+  const parsed = parseMindDocOnDesktop(encodeMindDoc(doc));
+  assert.equal(parsed.schemaVersion, 1);
+  assert.equal(parsed.root.children[0]?.children[0]?.text, "二层");
+  assert.equal(JSON.parse(new TextDecoder().decode(encodeMindDoc(doc))).schemaVersion, 1);
 });

@@ -303,3 +303,18 @@ export {
   type AssetSearchIndex,
   type AssetSearchKind,
 } from "./search.ts";
+
+export {
+  addMindChild,
+  createMindDoc,
+  createMindNode,
+  encodeMindDoc,
+  findMindNode,
+  isMindmapName,
+  parseMindDoc,
+  removeMindNode,
+  setMindNodeText,
+  validateMindDoc,
+  type MindDoc,
+  type MindNode,
+} from "./mindmap.ts";

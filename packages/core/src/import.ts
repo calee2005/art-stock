@@ -87,14 +87,17 @@ export function inferObjectType(name: string, mimeType?: string): ObjectType {
   if (["md", "markdown"].includes(ext)) {
     return "markdown";
   }
+  if (ext === "mindmap" || ext === "mind") {
+    return "mindmap";
+  }
+  if (ext === "json" && name.toLowerCase().includes("mind")) {
+    return "mindmap";
+  }
   if (["mp3", "wav", "flac", "ogg", "m4a"].includes(ext)) {
     return "audio";
   }
   if (["mp4", "webm", "mov", "mkv"].includes(ext)) {
     return "video";
-  }
-  if (ext === "json" && name.toLowerCase().includes("mind")) {
-    return "mindmap";
   }
   return "binary";
 }

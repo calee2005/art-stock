@@ -7,6 +7,7 @@ import {
   isWebp,
   listLibraries,
   loadPdfOriginal,
+  parseMindDoc,
   preparePdfViewer,
   searchAssets,
   type AutoSnapshotResult,
@@ -177,4 +178,8 @@ export function sqliteQueryAssets<T extends { id: string; name: string; tags: st
   match: string,
 ): T[] {
   return searchAssets(assets, match, "sqlite-fts");
+}
+
+export function parseMindDocOnDesktop(bytes: Uint8Array) {
+  return parseMindDoc(bytes);
 }

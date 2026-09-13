@@ -421,11 +421,12 @@
       "id": "F-052",
       "name": "思维导图编辑与 JSON blob",
       "phase": "P5",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-012"],
       "apps": ["web", "desktop", "android"],
       "designDoc": "docs/03-features/08-mindmap.md",
-      "acceptance": ["三层节点重开一致", "存盘为文档规定 JSON 而非私有二进制"]
+      "acceptance": ["三层节点重开一致", "存盘为文档规定 JSON 而非私有二进制"],
+      "notes": "MindDoc schemaVersion=1 JSON blob via commitSnapshot/withRemoteLock. Concurrent edits keep both JSON on conflict/* . Web nested editor; desktop parseMindDocOnDesktop."
     },
     {
       "id": "F-060",

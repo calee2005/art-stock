@@ -48,6 +48,7 @@ test("inferObjectType is the extension point beyond binary", () => {
   assert.equal(inferObjectType("notes.bin"), "binary");
   assert.equal(inferObjectType("hero.png"), "artwork");
   assert.equal(inferObjectType("doc.pdf"), "pdf");
+  assert.equal(inferObjectType("plot.mindmap"), "mindmap");
   assert.equal(inferObjectType("x", "audio/mpeg"), "audio");
 });
 
