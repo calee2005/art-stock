@@ -1,0 +1,12 @@
+[package]
+name = "art-stock"
+version = "0.0.0"
+description = "Art Stock desktop/Pad host. Tauri shell lands in F-005."
+authors = ["Art Stock"]
+edition = "2021"
+publish = false
+
+[lib]
+name = "art_stock_lib"
+path = "src/lib.rs"
+crate-type = ["rlib"]

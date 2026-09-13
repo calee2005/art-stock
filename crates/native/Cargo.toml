@@ -1,0 +1,9 @@
+[package]
+name = "art-stock-native"
+version = "0.0.0"
+description = "Native I/O: thumbnails, file watch, secure store, SQLite, multipart. Protocol stays in packages/core."
+edition = "2021"
+publish = false
+
+[lib]
+path = "src/lib.rs"
