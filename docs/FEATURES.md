@@ -4,7 +4,7 @@ Agent 以 [FEATURES.json](FEATURES.json) 为任务源，本文件为可读勾选
 
 领取规则见 [AGENTS.md](../AGENTS.md)。阶段说明见 [04-roadmap.md](04-roadmap.md)。
 
-当前进度：P0 **F-000**–**F-003**、**F-005** 已完成。完成一项后请同步改 JSON 的 `status`，并把下面相应行改为 `[x]`。
+当前进度：P0 **F-000**–**F-005** 已完成。完成一项后请同步改 JSON 的 `status`，并把下面相应行改为 `[x]`。
 
 ## P0 骨架
 
@@ -12,7 +12,7 @@ Agent 以 [FEATURES.json](FEATURES.json) 为任务源，本文件为可读勾选
 - [x] **F-001** core 类型与对象键生成 — [协议](02-storage-protocol.md)（依赖 F-000）；prefix 默认空，协议根固定 `.artstock/v1/`
 - [x] **F-002** S3 适配接口 + mock — [01-remotes](03-features/01-remotes.md)（F-001）
 - [x] **F-003** 全局写锁 `withRemoteLock` — [协议](02-storage-protocol.md)（F-002）
-- [ ] **F-004** Web：远端配置、探测、list/get、受控 PUT — [14-web](03-features/14-web.md)（F-003）
+- [x] **F-004** Web：远端配置、探测、list/get、受控 PUT — [14-web](03-features/14-web.md)（F-003）
 - [x] **F-005** Tauri 空壳 desktop + Android 目标 — [15-desktop](03-features/15-desktop.md)（F-000）
 
 ## P1 资料库 MVP

@@ -84,7 +84,7 @@
       "id": "F-004",
       "name": "Web：远端配置、探测、list/get、受控 PUT",
       "phase": "P0",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["F-003"],
       "apps": ["web"],
       "designDoc": "docs/03-features/14-web.md",
@@ -95,7 +95,7 @@
         "list/get 成功；PUT 前后能观察到 lock.json",
         "密钥不进构建产物"
       ],
-      "notes": ""
+      "notes": "Vite SPA；探测失败改只读。list/get/受控 PUT 以 MemoryObjectStore 验证 lock.json。真实 HTTP 签名仍为 S3 stub。空密钥不请求桶。"
     },
     {
       "id": "F-005",
