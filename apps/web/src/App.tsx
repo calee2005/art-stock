@@ -58,6 +58,7 @@ import {
   removeAssetTag,
   setAssetRating,
   assetsMatchingTags,
+  searchAssets,
   PLACEHOLDER_WEBP,
   LOCAL_PIN_STORAGE_KEY,
   addPin,
@@ -165,6 +166,7 @@ export function App() {
   const [assetFolderId, setAssetFolderId] = useState("");
   const [assetTagDraft, setAssetTagDraft] = useState("");
   const [assetTagFilter, setAssetTagFilter] = useState("");
+  const [assetSearch, setAssetSearch] = useState("");
   const [selectedAssetId, setSelectedAssetId] = useState("");
   const [mdSource, setMdSource] = useState("");
   const [mdHtml, setMdHtml] = useState("");
@@ -1555,6 +1557,15 @@ export function App() {
             placeholder="多个标签需同时具备"
           />
         </label>
+        <label>
+          MiniSearch
+          <input
+            data-testid="asset-search"
+            value={assetSearch}
+            onChange={(e) => setAssetSearch(e.target.value)}
+            placeholder="名称或标签"
+          />
+        </label>
       </p>
       <p>
         本机钉选 {pins.length} 项（不上远端）。原文件缓存 {originalCache.size}。
@@ -1575,14 +1586,18 @@ export function App() {
         </button>
       </p>
       <ul>
-        {assetsMatchingTags(
-          assets.filter((asset) =>
-            assetFolderId ? asset.folderId === assetFolderId : true,
+        {searchAssets(
+          assetsMatchingTags(
+            assets.filter((asset) =>
+              assetFolderId ? asset.folderId === assetFolderId : true,
+            ),
+            assetTagFilter
+              .split(/[,，\s]+/)
+              .map((item) => item.trim())
+              .filter(Boolean),
           ),
-          assetTagFilter
-            .split(/[,，\s]+/)
-            .map((item) => item.trim())
-            .filter(Boolean),
+          assetSearch,
+          "minisearch",
         ).map((asset) => (
           <li key={asset.id}>
             <button type="button" onClick={() => setSelectedAssetId(asset.id)}>

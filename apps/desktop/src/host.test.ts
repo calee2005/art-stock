@@ -20,6 +20,7 @@ import {
   openPdfOnDesktop,
   preparePdfOnDesktop,
   saveDesktopRemote,
+  sqliteQueryAssets,
   type SecureStore,
 } from "./host.ts";
 
@@ -163,4 +164,24 @@ test("desktop PDF viewer loads blob only on open via the same core protocol", as
   const opened = await openPdfOnDesktop(store, "", prepared);
   assert.equal(opened.pageCount, 2);
   assert.equal(blobGets.length, 1);
+});
+
+test("desktop sqlite FTS MATCH returns name and tag subsets", () => {
+  const assets = [
+    { id: "a", name: "hero.png", tags: ["角色"] },
+    { id: "b", name: "villain.png", tags: ["反派"] },
+    { id: "c", name: "heroic.png", tags: ["草稿"] },
+  ];
+  assert.deepEqual(
+    sqliteQueryAssets(assets, "hero").map((item) => item.id),
+    ["a"],
+  );
+  assert.deepEqual(
+    sqliteQueryAssets(assets, "her*").map((item) => item.id).sort(),
+    ["a", "c"],
+  );
+  assert.deepEqual(
+    sqliteQueryAssets(assets, "角色").map((item) => item.id),
+    ["a"],
+  );
 });

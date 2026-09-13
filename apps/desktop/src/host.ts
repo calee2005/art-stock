@@ -8,6 +8,7 @@ import {
   listLibraries,
   loadPdfOriginal,
   preparePdfViewer,
+  searchAssets,
   type AutoSnapshotResult,
   type ImportAssetInput,
   type ObjectStore,
@@ -168,4 +169,12 @@ export async function openPdfOnDesktop(
   viewer: PdfViewer,
 ): Promise<PdfViewer> {
   return loadPdfOriginal(store, prefix, viewer);
+}
+
+/** Desktop sqlite_query stand-in: FTS5 MATCH over local asset meta, never S3. */
+export function sqliteQueryAssets<T extends { id: string; name: string; tags: string[] }>(
+  assets: readonly T[],
+  match: string,
+): T[] {
+  return searchAssets(assets, match, "sqlite-fts");
 }

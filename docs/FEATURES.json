@@ -288,11 +288,12 @@
       "id": "F-032",
       "name": "素材检索索引（SQLite FTS / MiniSearch）",
       "phase": "P3",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-031"],
       "apps": ["web", "desktop"],
       "designDoc": "docs/03-features/04-assets.md",
-      "acceptance": ["按名称与标签搜索返回正确子集"]
+      "acceptance": ["按名称与标签搜索返回正确子集"],
+      "notes": "Local MiniSearch inverted index over name+tags (prefix AND). Desktop sqliteQueryAssets uses FTS5 MATCH (AND; prefix via *). Index is local only, never written to S3."
     },
     {
       "id": "F-033",

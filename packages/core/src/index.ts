@@ -288,3 +288,18 @@ export {
   type PdfViewer,
   type PdfWriteOptions,
 } from "./pdf.ts";
+
+export {
+  LOCAL_ASSET_SEARCH_KEY,
+  createAssetSearchIndex,
+  parseFtsQuery,
+  rebuildAssetSearchIndex,
+  removeAssetSearchDoc,
+  searchAssetIndex,
+  searchAssets,
+  tokenizeSearchText,
+  upsertAssetSearchDoc,
+  type AssetSearchDoc,
+  type AssetSearchIndex,
+  type AssetSearchKind,
+} from "./search.ts";
