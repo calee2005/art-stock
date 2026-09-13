@@ -16,7 +16,6 @@ import {
 } from "./lock.ts";
 import { isStoreError } from "./store-error.ts";
 import {
-  SCHEMA_VERSION,
   type BranchPointer,
   type Hlc,
   type ObjectMeta,
