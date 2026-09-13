@@ -69,7 +69,7 @@ Agent 以 [FEATURES.json](FEATURES.json) 为任务源，本文件为可读勾选
 
 ## P8 墨水屏
 
-- [ ] **F-080** subtree 拉取上游并刷机验证启动 — [17-eink](03-features/17-eink.md)（无代码依赖，但未完成前禁止改驱动）
+- [ ] **F-080** subtree 拉取上游并刷机验证启动 — [17-eink](03-features/17-eink.md)（**blocked**：无墨水屏硬件，无法刷机亮屏验证）
 - [ ] **F-081** 客户端写 config/summary（F-010, F-061, F-003）
 - [ ] **F-082** 固件 GET 与 art-stock 页面（F-080, F-081）
 

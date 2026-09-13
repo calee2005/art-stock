@@ -426,7 +426,7 @@
       "id": "F-060",
       "name": "看板 Workspace 与 Board",
       "phase": "P6",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-003"],
       "apps": ["web", "desktop", "android", "core"],
       "designDoc": "docs/03-features/10-kanban.md",
@@ -523,7 +523,7 @@
       "id": "F-080",
       "name": "subtree 拉取上游固件并刷机验证启动",
       "phase": "P8",
-      "status": "todo",
+      "status": "blocked",
       "dependsOn": [],
       "apps": ["eink"],
       "designDoc": "docs/03-features/17-eink.md",
@@ -534,7 +534,7 @@
         "未删 board 驱动与 RawDraw",
         "未新建平行 firmware 工程"
       ],
-      "notes": "本项未完成前禁止改驱动或换 UI 框架。"
+      "notes": "Cloud agent 环境无墨水屏、无刷机线，无法验证 RawDraw 亮屏。未亮屏前不准删驱动或换框架。改做下一条可做项。"
     },
     {
       "id": "F-081",
