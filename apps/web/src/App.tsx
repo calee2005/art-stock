@@ -9,6 +9,11 @@ import {
   protocolRoot,
   readTree,
   renameLibrary,
+  enqueueImport,
+  flushImportQueue,
+  importObjectNow,
+  inferObjectType,
+  type ImportQueue,
   type ObjectStore,
   type TreeNode,
 } from "@art-stock/core";
@@ -52,6 +57,7 @@ export function App() {
   const [folderParentId, setFolderParentId] = useState("");
   const [movingNodeId, setMovingNodeId] = useState("");
   const [moveParentId, setMoveParentId] = useState("");
+  const [importQueue, setImportQueue] = useState<ImportQueue>([]);
   const device = useMemo(() => deviceIdentity(storage), []);
   const preview = useMemo(
     () => protocolRoot(form.prefix),
@@ -207,6 +213,58 @@ export function App() {
       await refreshTree(selectedLibraryId);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "移动失败");
+    }
+  }
+
+  async function onPickFile(file: File) {
+    if (!selectedLibraryId) {
+      setStatus("请先打开资料库");
+      return;
+    }
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const parent = folderParentId === "" ? null : folderParentId;
+    const job = {
+      libraryId: selectedLibraryId,
+      parentFolderId: parent,
+      name: file.name,
+      bytes,
+      type: inferObjectType(file.name, file.type),
+      mimeType: file.type || "application/octet-stream",
+    };
+    if (!canWrite) {
+      setImportQueue((current) => {
+        const next = [...current];
+        enqueueImport(next, job);
+        return next;
+      });
+      setStatus(`已入队离线导入 ${file.name}（${importQueue.length + 1}）`);
+      return;
+    }
+    try {
+      await importObjectNow(lockTarget(), job);
+      setStatus(`已导入 ${file.name}`);
+      await refreshTree(selectedLibraryId);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "导入失败");
+    }
+  }
+
+  async function onFlushQueue() {
+    if (!canWrite) {
+      setStatus("只读模式：写入口已禁用");
+      return;
+    }
+    const pending = [...importQueue];
+    setImportQueue([]);
+    try {
+      await flushImportQueue(lockTarget(), pending);
+      setStatus(`已提交 ${pending.length} 个离线导入`);
+      if (selectedLibraryId) {
+        await refreshTree(selectedLibraryId);
+      }
+    } catch (error) {
+      setImportQueue((current) => [...pending, ...current]);
+      setStatus(error instanceof Error ? error.message : "提交队列失败");
     }
   }
 
@@ -369,7 +427,8 @@ export function App() {
               .sort((a, b) => a.order - b.order)
               .map((node) => (
                 <li key={node.id} style={{ marginLeft: (folderDepth(treeNodes, node.id) - 1) * 16 }}>
-                  {node.name} <code>{node.id.slice(0, 8)}</code>
+                  {node.kind === "file" ? "文件" : "文件夹"} {node.name}{" "}
+                  <code>{node.id.slice(0, 8)}</code>
                 </li>
               ))}
           </ul>
@@ -393,11 +452,13 @@ export function App() {
                 onChange={(e) => setFolderParentId(e.target.value)}
               >
                 <option value="">（根）</option>
-                {treeNodes.map((node) => (
-                  <option key={node.id} value={node.id}>
-                    {node.name}
-                  </option>
-                ))}
+                {treeNodes
+                  .filter((node) => node.kind === "folder")
+                  .map((node) => (
+                    <option key={node.id} value={node.id}>
+                      {node.name}
+                    </option>
+                  ))}
               </select>
             </label>
             <button type="submit" disabled={!canWrite}>
@@ -419,7 +480,7 @@ export function App() {
                 <option value="">选择节点</option>
                 {treeNodes.map((node) => (
                   <option key={node.id} value={node.id}>
-                    {node.name}
+                    {node.kind === "file" ? "文件" : "文件夹"} {node.name}
                   </option>
                 ))}
               </select>
@@ -431,17 +492,36 @@ export function App() {
                 onChange={(e) => setMoveParentId(e.target.value)}
               >
                 <option value="">（根）</option>
-                {treeNodes.map((node) => (
-                  <option key={node.id} value={node.id}>
-                    {node.name}
-                  </option>
-                ))}
+                {treeNodes
+                  .filter((node) => node.kind === "folder")
+                  .map((node) => (
+                    <option key={node.id} value={node.id}>
+                      {node.name}
+                    </option>
+                  ))}
               </select>
             </label>
             <button type="submit" disabled={!canWrite}>
               移动
             </button>
           </form>
+          <p>
+            导入文件
+            <input
+              type="file"
+              disabled={!selectedLibraryId}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  void onPickFile(file);
+                }
+                e.target.value = "";
+              }}
+            />
+            <button type="button" onClick={() => void onFlushQueue()} disabled={!canWrite}>
+              提交离线队列（{importQueue.length}）
+            </button>
+          </p>
         </section>
       ) : null}
       <style>{`

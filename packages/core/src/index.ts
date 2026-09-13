@@ -110,3 +110,15 @@ export {
   subtreeIds,
   wouldCreateCycle,
 } from "./tree.ts";
+
+export { sha256Hex } from "./hash.ts";
+export {
+  enqueueImport,
+  flushImportQueue,
+  getObjectMeta,
+  importObjectNow,
+  inferObjectType,
+  type ImportObjectInput,
+  type ImportQueue,
+  type QueuedImport,
+} from "./import.ts";

@@ -146,7 +146,7 @@
       "id": "F-012",
       "name": "文件导入与 object meta",
       "phase": "P1",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-011"],
       "apps": ["web", "desktop"],
       "designDoc": "docs/03-features/02-libraries.md",
@@ -155,7 +155,7 @@
         "类型至少区分 binary 与后续扩展点",
         "离线入队、上线持锁上传"
       ],
-      "notes": ""
+      "notes": "importObjectNow/flushImportQueue via withRemoteLock purpose upload; blob by sha256; inferObjectType extension point; offline queue restores on failure."
     },
     {
       "id": "F-013",
