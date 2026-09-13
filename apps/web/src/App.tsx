@@ -43,7 +43,6 @@ import {
   addPin,
   fetchOriginalOnDemand,
   hasPin,
-  originalCacheKey,
   parsePins,
   purgeUnpinnedOriginals,
   removePin,
