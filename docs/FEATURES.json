@@ -175,7 +175,7 @@
       "id": "F-014",
       "name": "桌面接入同一 core（IPC + 本地缓存目录）",
       "phase": "P1",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-005", "F-010"],
       "apps": ["desktop"],
       "designDoc": "docs/03-features/15-desktop.md",
@@ -183,7 +183,7 @@
         "桌面与 Web 对同一远端看到同一库列表",
         "密钥走安全存储 command 而非明文 json"
       ],
-      "notes": ""
+      "notes": "Desktop host.ts uses same listLibraries/createLibrary; secrets via secure_store_* files under app data/secrets (0600), never plaintext JSON config."
     },
     {
       "id": "F-015",
