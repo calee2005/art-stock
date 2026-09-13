@@ -1,6 +1,5 @@
 param(
-    [string]$EspressifRoot = "D:\Espressif",
-    [string]$MirrorDir = "D:\zectrix-ascii",
+    [string]$IdfPath = $env:IDF_PATH,
     [switch]$FullClean,
     [switch]$Flash,
     [string]$Port
@@ -8,178 +7,157 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-function Get-LatestChildDirectory {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$Path
-    )
+# Machine convention: IDF source is C:\esp\v6.0.3\esp-idf (v6.0.3).
+# This PC was installed with Espressif Installation Manager (EIM):
+#   IDF_PATH        = C:\esp\v6.0.3\esp-idf
+#   IDF_TOOLS_PATH  = C:\Espressif\tools
+# Bare `. C:\esp\v6.0.3\esp-idf\export.ps1` looks for the classic
+# %USERPROFILE%\.espressif python_env (v5.x) and fails. Prefer the EIM
+# profile, then fall back to export.ps1 only if that layout exists.
+$DefaultIdfPath = "C:\esp\v6.0.3\esp-idf"
+$EimProfile = "C:\Espressif\tools\Microsoft.v6.0.3.PowerShell_profile.ps1"
+$EimPython = "C:\Espressif\tools\python\v6.0.3\venv\Scripts\python.exe"
 
-    if (-not (Test-Path -LiteralPath $Path)) {
-        return $null
+function Test-IdfTree {
+    param([string]$Path)
+    if (-not $Path) {
+        return $false
     }
-
-    return Get-ChildItem -LiteralPath $Path -Directory |
-        Sort-Object Name -Descending |
-        Select-Object -First 1
+    return (Test-Path -LiteralPath (Join-Path $Path "tools\idf.py"))
 }
 
-function Invoke-EsptoolFlash {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$BuildDir,
-        [Parameter(Mandatory = $true)]
-        [string]$EsptoolExe,
-        [string]$PortName
-    )
+if (-not (Test-IdfTree $IdfPath)) {
+    $IdfPath = $DefaultIdfPath
+}
 
-    $flashArgsPath = Join-Path $BuildDir "flash_args"
-    if (-not (Test-Path -LiteralPath $flashArgsPath)) {
-        throw "未找到 flash_args: $flashArgsPath"
-    }
-
-    $flashArgs = @(
-        "--chip", "esp32s3",
-        "-b", "460800",
-        "--before", "default_reset",
-        "--after", "hard_reset",
-        "write_flash"
-    )
-    if ($PortName) {
-        $flashArgs = @("--chip", "esp32s3", "-p", $PortName) + $flashArgs[2..($flashArgs.Length - 1)]
-    }
-
-    foreach ($line in Get-Content -LiteralPath $flashArgsPath) {
-        $trimmed = $line.Trim()
-        if (-not $trimmed) {
-            continue
-        }
-        $flashArgs += ($trimmed -split "\s+")
-    }
-
-    Write-Host "[INFO] Running esptool hard-reset flash"
-    Push-Location $BuildDir
-    try {
-        $esptoolOutput = & $EsptoolExe @flashArgs 2>&1
-        $exitCode = $LASTEXITCODE
-    }
-    finally {
-        Pop-Location
-    }
-    $esptoolOutput | Out-Host
-
-    if ($exitCode -eq 0) {
-        return
-    }
-
-    $outputText = ($esptoolOutput | Out-String)
-    $verifiedCount = ([regex]::Matches($outputText, "Hash of data verified\.")).Count
-    $hardResetIssued = $outputText -match "Hard resetting"
-    $expectedPortDrop = $outputText -match "Cannot configure port"
-
-    if ($hardResetIssued -and $expectedPortDrop -and $verifiedCount -ge 4) {
-        Write-Warning "esptool reset caused COM port re-enumeration after verified flash; treating as success"
-        return
-    }
-
-    throw "esptool flash 失败"
+if (-not (Test-IdfTree $IdfPath)) {
+    throw "未找到 ESP-IDF: $IdfPath（可设置 IDF_PATH，默认 $DefaultIdfPath）"
 }
 
 $projectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$idfPy = Join-Path $IdfPath "tools\idf.py"
 
 # Clear MSYSTEM so idf.py doesn't mistake this for a MinGW/MSys environment
 # (Git Bash sets MSYSTEM=MINGW64 which gets inherited by child processes)
 Remove-Item Env:MSYSTEM -ErrorAction SilentlyContinue
 
-if (-not (Test-Path -LiteralPath $EspressifRoot)) {
-    throw "ESP-IDF 根目录不存在: $EspressifRoot"
+$idfPython = $null
+if ((Test-Path -LiteralPath $EimProfile) -and (Test-Path -LiteralPath $EimPython)) {
+    Write-Host "[INFO] Activating EIM v6.0.3 profile (IDF_PATH=$IdfPath)"
+    . $EimProfile
+    $idfPython = $EimPython
+}
+else {
+    $exportPs1 = Join-Path $IdfPath "export.ps1"
+    if (-not (Test-Path -LiteralPath $exportPs1)) {
+        throw "未找到 EIM profile 或 $exportPs1"
+    }
+    Write-Host "[INFO] Activating $exportPs1"
+    . $exportPs1
+    $idfPython = (Get-Command python -ErrorAction Stop).Source
 }
 
-$idfPath = Join-Path $EspressifRoot "frameworks\esp-idf-v5.5.2"
-$idfPython = Join-Path $EspressifRoot "python_env\idf5.5_py3.13_env\Scripts\python.exe"
-$esptoolExe = Join-Path $EspressifRoot "python_env\idf5.5_py3.13_env\Scripts\esptool.exe"
-$cmakeBin = Join-Path $EspressifRoot "tools\cmake\3.30.2\bin"
-$ninjaBin = Join-Path $EspressifRoot "tools\ninja\1.12.1"
-$toolchainRoot = Get-LatestChildDirectory (Join-Path $EspressifRoot "tools\xtensa-esp-elf")
-$romElfRoot = Get-LatestChildDirectory (Join-Path $EspressifRoot "tools\esp-rom-elfs")
-
-if (-not (Test-Path -LiteralPath $idfPath)) {
-    throw "未找到 IDF_PATH: $idfPath"
-}
-if (-not (Test-Path -LiteralPath $idfPython)) {
-    throw "未找到 ESP-IDF Python: $idfPython"
-}
-if (-not (Test-Path -LiteralPath $esptoolExe)) {
-    throw "未找到 esptool: $esptoolExe"
-}
-if (-not (Test-Path -LiteralPath $cmakeBin)) {
-    throw "未找到 CMake: $cmakeBin"
-}
-if (-not (Test-Path -LiteralPath $ninjaBin)) {
-    throw "未找到 Ninja: $ninjaBin"
-}
-if (-not $toolchainRoot) {
-    throw "未找到 xtensa-esp-elf toolchain"
+if (-not $env:IDF_PATH) {
+    $env:IDF_PATH = $IdfPath
 }
 
-$toolchainBin = Join-Path $toolchainRoot.FullName "xtensa-esp-elf\bin"
-if (-not (Test-Path -LiteralPath $toolchainBin)) {
-    throw "未找到 xtensa toolchain bin: $toolchainBin"
-}
+Write-Host "[INFO] IDF_PATH=$env:IDF_PATH"
+Write-Host "[INFO] IDF_TOOLS_PATH=$env:IDF_TOOLS_PATH"
 
-if (-not (Test-Path -LiteralPath $MirrorDir)) {
-    New-Item -ItemType Directory -Path $MirrorDir | Out-Null
-}
+# B-004: esp_cam_sensor 1.5.2 private SPI slave does not compile on IDF 6.0.3.
+# Official fix is >=2.0.1; managed_components is gitignored so re-apply after download.
+function Apply-EspCamSensorIdf6Patch {
+    $camRoot = Join-Path $projectDir "managed_components\espressif__esp_cam_sensor"
+    $header = Join-Path $camRoot "src\driver_spi\esp_cam_spi_slave.h"
+    $cmake = Join-Path $camRoot "CMakeLists.txt"
+    if (-not (Test-Path -LiteralPath $header)) {
+        return
+    }
 
-Write-Host "[INFO] Sync project to ASCII mirror: $MirrorDir"
-$robocopyArgs = @(
-    $projectDir,
-    $MirrorDir,
-    "/MIR",
-    "/XD", "build", ".git", ".idea", ".vscode",
-    "/NFL", "/NDL", "/NJH", "/NJS", "/NP"
-)
-& robocopy @robocopyArgs | Out-Host
-if ($LASTEXITCODE -gt 7) {
-    throw "robocopy 同步失败，退出码: $LASTEXITCODE"
-}
-
-$env:IDF_PATH = $idfPath
-$env:IDF_TOOLS_PATH = $EspressifRoot
-$env:IDF_PYTHON_ENV_PATH = Split-Path -Parent (Split-Path -Parent $idfPython)
-$env:PYTHONUTF8 = "1"
-$env:PYTHONIOENCODING = "utf-8"
-$env:ESP_IDF_VERSION = "5.5.2"
-
-if ($romElfRoot) {
-    $env:ESP_ROM_ELF_DIR = $romElfRoot.FullName
-}
-
-$env:PATH = "$cmakeBin;$ninjaBin;$toolchainBin;$env:PATH"
-
-$idfPy = Join-Path $idfPath "tools\idf.py"
-
-Push-Location $MirrorDir
-try {
-    if ($FullClean) {
-        Write-Host "[INFO] Running idf.py fullclean"
-        & $idfPython $idfPy fullclean
-        if ($LASTEXITCODE -ne 0) {
-            throw "idf.py fullclean 失败"
+    $headerText = Get-Content -LiteralPath $header -Raw
+    if ($headerText -notmatch 'only for ESP-IDF versions < v6\.0\.0') {
+        $headerText = $headerText.Replace(
+            "#include `"driver/spi_slave.h`"`r`n",
+            "#include `"driver/spi_slave.h`"`r`n#include `"esp_idf_version.h`"`r`n"
+        )
+        if ($headerText -notmatch 'esp_idf_version\.h') {
+            $headerText = $headerText.Replace(
+                "#include `"driver/spi_slave.h`"`n",
+                "#include `"driver/spi_slave.h`"`n#include `"esp_idf_version.h`"`n"
+            )
+        }
+        $oldGuard = @"
+/**
+ * @brief Enable Camera private SPI slave driver
+ */
+#if CONFIG_SPIRAM
+#define ESP_CAM_SPI_DRIVER 1
+#endif
+"@
+        $newGuard = @"
+/**
+ * @brief Enable Camera private SPI slave driver, only for ESP-IDF versions < v6.0.0
+ */
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(6, 0, 0)
+#if CONFIG_SPIRAM
+#define ESP_CAM_SPI_DRIVER 1
+#endif
+#endif
+"@
+        if ($headerText.Contains($oldGuard)) {
+            $headerText = $headerText.Replace($oldGuard, $newGuard)
+            Set-Content -LiteralPath $header -Value $headerText -NoNewline
+            Write-Host "[INFO] Patched esp_cam_sensor header for IDF 6 (B-004)"
         }
     }
 
-    Write-Host "[INFO] Running idf.py build"
-    & $idfPython $idfPy build
+    if (Test-Path -LiteralPath $cmake) {
+        $cmakeText = Get-Content -LiteralPath $cmake -Raw
+        $oldCmake = "if(CONFIG_SPIRAM)`r`n    list(APPEND srcs `"src/driver_spi/spi_slave.c`")`r`nendif()"
+        $oldCmakeUnix = "if(CONFIG_SPIRAM)`n    list(APPEND srcs `"src/driver_spi/spi_slave.c`")`nendif()"
+        $newCmake = "# IDF 6.0+ ships a public SPI slave driver; 1.5.2's private copy does not compile.`nif(CONFIG_SPIRAM AND IDF_VERSION_MAJOR LESS 6)`n    list(APPEND srcs `"src/driver_spi/spi_slave.c`")`nendif()"
+        if ($cmakeText.Contains($oldCmake)) {
+            $cmakeText = $cmakeText.Replace($oldCmake, $newCmake)
+            Set-Content -LiteralPath $cmake -Value $cmakeText -NoNewline
+            Write-Host "[INFO] Patched esp_cam_sensor CMakeLists for IDF 6 (B-004)"
+        }
+        elseif ($cmakeText.Contains($oldCmakeUnix)) {
+            $cmakeText = $cmakeText.Replace($oldCmakeUnix, $newCmake)
+            Set-Content -LiteralPath $cmake -Value $cmakeText -NoNewline
+            Write-Host "[INFO] Patched esp_cam_sensor CMakeLists for IDF 6 (B-004)"
+        }
+    }
+}
+
+function Invoke-Idf {
+    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$IdfArgs)
+    Write-Host "[INFO] Running idf.py $($IdfArgs -join ' ')"
+    & $idfPython $idfPy @IdfArgs
     if ($LASTEXITCODE -ne 0) {
-        throw "idf.py build 失败"
+        throw "idf.py $($IdfArgs -join ' ') 失败"
+    }
+}
+
+Push-Location $projectDir
+try {
+    if ($FullClean) {
+        Invoke-Idf fullclean
     }
 
+    Apply-EspCamSensorIdf6Patch
+    Invoke-Idf build
+
     if ($Flash) {
-        Invoke-EsptoolFlash -BuildDir (Join-Path $MirrorDir "build") -EsptoolExe $esptoolExe -PortName $Port
+        $flashArgs = @()
+        if ($Port) {
+            $flashArgs += @("-p", $Port)
+        }
+        $flashArgs += "flash"
+        Invoke-Idf @flashArgs
     }
 }
 finally {
     Pop-Location
 }
 
-Write-Host "[INFO] Done. Mirror build output: $(Join-Path $MirrorDir 'build')"
+Write-Host "[INFO] Done. Build output: $(Join-Path $projectDir 'build')"
