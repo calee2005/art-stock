@@ -26,6 +26,27 @@ pub(crate) struct JniHandles<'a> {
     pub sandbox: &'a JClass<'a>,
 }
 
+pub(crate) fn files_dir() -> Result<std::path::PathBuf, String> {
+    with_jni(|env, handles| {
+        let file = env
+            .call_method(handles.context, "getFilesDir", "()Ljava/io/File;", &[])
+            .map_err(|err| err.to_string())?;
+        check_exception(env)?;
+        let file_obj = file.l().map_err(|err| err.to_string())?;
+        let path = env
+            .call_method(file_obj, "getAbsolutePath", "()Ljava/lang/String;", &[])
+            .map_err(|err| err.to_string())?;
+        check_exception(env)?;
+        let path_obj = path.l().map_err(|err| err.to_string())?;
+        let text = env
+            .get_string(&jni::objects::JString::from(path_obj))
+            .map_err(|err| err.to_string())?
+            .to_string_lossy()
+            .into_owned();
+        Ok(std::path::PathBuf::from(text))
+    })
+}
+
 pub(crate) fn check_exception(env: &mut JNIEnv<'_>) -> Result<(), String> {
     if env.exception_check().unwrap_or(false) {
         let _ = env.exception_clear();
