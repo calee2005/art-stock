@@ -175,7 +175,7 @@
       "id": "F-014",
       "name": "桌面接入同一 core（IPC + 本地缓存目录）",
       "phase": "P1",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-005", "F-010"],
       "apps": ["desktop"],
       "designDoc": "docs/03-features/15-desktop.md",
