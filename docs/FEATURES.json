@@ -386,11 +386,12 @@
       "id": "F-046",
       "name": "仅 Wi-Fi 下载原文件（Pad 默认开）",
       "phase": "P4",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-023", "F-044"],
       "apps": ["android"],
       "designDoc": "docs/03-features/16-android-pad.md",
-      "acceptance": ["蜂窝网络下原图下载被拦截，元数据浏览仍可用"]
+      "acceptance": ["蜂窝网络下原图下载被拦截，元数据浏览仍可用"],
+      "notes": "fetchOriginalOnDemand wifiOnly default on Pad; cellular throws WIFI_ONLY; listAssets still works. Pixel Tablet e2e simulated cellular via pad-wifi-e2e.json (no secrets)."
     },
     {
       "id": "F-050",
