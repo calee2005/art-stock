@@ -277,7 +277,7 @@
       "id": "F-031",
       "name": "素材文件夹、标签、评分",
       "phase": "P3",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-030"],
       "apps": ["web", "desktop"],
       "designDoc": "docs/03-features/04-assets.md",
