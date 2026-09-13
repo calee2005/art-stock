@@ -34,7 +34,7 @@ Agent 以 [FEATURES.json](FEATURES.json) 为任务源，本文件为可读勾选
 ## P3 素材库
 
 - [x] **F-030** 导入与缩略图 — [04-assets](03-features/04-assets.md)（F-012）
-- [ ] **F-031** 文件夹、标签、评分（F-030）
+- [x] **F-031** 文件夹、标签、评分（F-030）
 - [ ] **F-032** FTS / MiniSearch（F-031）
 - [ ] **F-033** Pad 分享导入（F-023, F-030）
 

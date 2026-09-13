@@ -277,11 +277,12 @@
       "id": "F-031",
       "name": "素材文件夹、标签、评分",
       "phase": "P3",
-      "status": "doing",
+      "status": "done",
       "dependsOn": ["F-030"],
       "apps": ["web", "desktop"],
       "designDoc": "docs/03-features/04-assets.md",
-      "acceptance": ["文件夹树", "标签筛选", "评分 0-5 LWW"]
+      "acceptance": ["文件夹树", "标签筛选", "评分 0-5 LWW"],
+      "notes": "Asset folders in assets/index.json; addAssetTag OR-Set; setAssetRating 0-5 LWW via ratingHlc; mergeAssetMeta unions tags and later HLC rating. Writes via withRemoteLock."
     },
     {
       "id": "F-032",
