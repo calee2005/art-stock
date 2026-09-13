@@ -58,6 +58,25 @@ fn inbox_dir() -> Result<PathBuf, String> {
     }
 }
 
+fn files_root() -> Result<PathBuf, String> {
+    #[cfg(target_os = "android")]
+    {
+        crate::android_jni::files_dir()
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        Err("inbox is Android-only".into())
+    }
+}
+
+fn assert_no_secret_material(raw: &str) -> Result<(), String> {
+    let lower = raw.to_ascii_lowercase();
+    if lower.contains("secretaccesskey") || lower.contains("super-secret") {
+        return Err("inbox scan state must not contain secrets".into());
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub fn inbox_list() -> Result<Vec<InboxItemDto>, String> {
     let dir = inbox_dir()?;
@@ -104,13 +123,40 @@ pub fn inbox_remove(name: String) -> Result<(), String> {
     }
 }
 
+#[tauri::command]
+pub fn inbox_scan_load() -> Result<Option<serde_json::Value>, String> {
+    let path = files_root()?.join("inbox-scan.json");
+    if !path.exists() {
+        return Ok(None);
+    }
+    let raw = fs::read_to_string(&path).map_err(|err| err.to_string())?;
+    assert_no_secret_material(&raw)?;
+    let value: serde_json::Value =
+        serde_json::from_str(&raw).map_err(|err| err.to_string())?;
+    Ok(Some(value))
+}
+
+#[tauri::command]
+pub fn inbox_scan_save(state: serde_json::Value) -> Result<(), String> {
+    let raw = serde_json::to_string_pretty(&state).map_err(|err| err.to_string())?;
+    assert_no_secret_material(&raw)?;
+    let path = files_root()?.join("inbox-scan.json");
+    fs::write(path, raw).map_err(|err| err.to_string())
+}
+
 #[cfg(test)]
 mod tests {
-    use super::sanitize_inbox_name;
+    use super::{assert_no_secret_material, sanitize_inbox_name};
 
     #[test]
     fn rejects_traversal() {
         assert!(sanitize_inbox_name("../secret.png").is_err());
         assert!(sanitize_inbox_name("ok-share.png").is_ok());
+    }
+
+    #[test]
+    fn scan_state_rejects_secrets() {
+        assert!(assert_no_secret_material(r#"{"objectIds":{"a.png":"obj-1"}}"#).is_ok());
+        assert!(assert_no_secret_material(r#"{"secretAccessKey":"x"}"#).is_err());
     }
 }

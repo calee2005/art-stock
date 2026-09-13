@@ -18,8 +18,12 @@ commands.allow = [
   "pad_share_e2e_report",
   "pad_wifi_e2e_config",
   "pad_wifi_e2e_report",
+  "pad_scan_e2e_config",
+  "pad_scan_e2e_report",
   "inbox_list",
   "inbox_read",
   "inbox_remove",
+  "inbox_scan_load",
+  "inbox_scan_save",
   "network_kind"
 ]

@@ -1,10 +1,15 @@
 import {
   MemoryObjectStore,
+  commitSnapshot,
   createLibrary,
+  DEFAULT_SNAPSHOT_POLICY,
   importAsset,
+  importObjectNow,
+  inferObjectType,
   listLibraries,
   type ObjectStore,
   type RemoteLockTarget,
+  type SnapshotPolicy,
 } from "@art-stock/core";
 import { S3ObjectStore } from "@art-stock/s3";
 import {
@@ -255,6 +260,179 @@ export type InboxItem = {
   mimeGuess?: string;
 };
 
+export const INBOX_SCAN_STORAGE_KEY = "art-stock.inbox-scan";
+
+export type InboxScanState = {
+  libraryId?: string;
+  seen: Record<string, number>;
+  objectIds: Record<string, string>;
+  lastCommitAt: Record<string, number>;
+};
+
+export function emptyInboxScanState(): InboxScanState {
+  return { seen: {}, objectIds: {}, lastCommitAt: {} };
+}
+
+export function loadInboxScanState(storage: StorageLike): InboxScanState {
+  try {
+    const raw = storage.getItem(INBOX_SCAN_STORAGE_KEY);
+    if (!raw) {
+      return emptyInboxScanState();
+    }
+    const parsed = JSON.parse(raw) as Partial<InboxScanState>;
+    return {
+      libraryId: typeof parsed.libraryId === "string" ? parsed.libraryId : undefined,
+      seen: parsed.seen ?? {},
+      objectIds: parsed.objectIds ?? {},
+      lastCommitAt: parsed.lastCommitAt ?? {},
+    };
+  } catch {
+    return emptyInboxScanState();
+  }
+}
+
+export function saveInboxScanState(storage: StorageLike, state: InboxScanState): void {
+  storage.setItem(INBOX_SCAN_STORAGE_KEY, JSON.stringify(state));
+}
+
+function normalizeInboxScanState(parsed: Partial<InboxScanState> | null | undefined): InboxScanState {
+  if (!parsed) {
+    return emptyInboxScanState();
+  }
+  return {
+    libraryId: typeof parsed.libraryId === "string" ? parsed.libraryId : undefined,
+    seen: parsed.seen ?? {},
+    objectIds: parsed.objectIds ?? {},
+    lastCommitAt: parsed.lastCommitAt ?? {},
+  };
+}
+
+export async function loadInboxScanStateHost(
+  storage: StorageLike,
+  invoke: TauriInvoke | null,
+): Promise<InboxScanState> {
+  if (invoke) {
+    try {
+      const value = (await invoke("inbox_scan_load")) as Partial<InboxScanState> | null;
+      if (value && (value.objectIds || value.seen || value.libraryId)) {
+        return normalizeInboxScanState(value);
+      }
+    } catch {
+      // fall back to localStorage
+    }
+  }
+  return loadInboxScanState(storage);
+}
+
+export async function saveInboxScanStateHost(
+  storage: StorageLike,
+  invoke: TauriInvoke | null,
+  state: InboxScanState,
+): Promise<void> {
+  saveInboxScanState(storage, state);
+  if (!invoke) {
+    return;
+  }
+  const json = JSON.stringify(state);
+  if (json.toLowerCase().includes("secretaccesskey") || json.includes("super-secret")) {
+    throw new Error("inbox scan state must not contain secrets");
+  }
+  await invoke("inbox_scan_save", { state });
+}
+
+export function diffInbox(previous: InboxItem[], next: InboxItem[]): InboxItem[] {
+  const seen = new Set(previous.map((item) => `${item.name}:${item.size}`));
+  return next.filter((item) => !seen.has(`${item.name}:${item.size}`));
+}
+
+export async function applyInboxScan(input: {
+  previous: InboxScanState;
+  items: InboxItem[];
+  read: (name: string) => Promise<Uint8Array>;
+  remote: RemoteLockTarget;
+  libraryId: string;
+  policy?: SnapshotPolicy;
+  now?: () => number;
+}): Promise<{
+  state: InboxScanState;
+  imported: string[];
+  snapshotted: string[];
+  skippedManual: string[];
+}> {
+  const policy = input.policy ?? DEFAULT_SNAPSHOT_POLICY;
+  const now = input.now ?? Date.now;
+  const state: InboxScanState = {
+    libraryId: input.libraryId,
+    seen: { ...input.previous.seen },
+    objectIds: { ...input.previous.objectIds },
+    lastCommitAt: { ...(input.previous.lastCommitAt ?? {}) },
+  };
+  const imported: string[] = [];
+  const snapshotted: string[] = [];
+  const skippedManual: string[] = [];
+  for (const item of input.items) {
+    const prevSize = state.seen[item.name];
+    if (prevSize === item.size) {
+      continue;
+    }
+    const bytes = await input.read(item.name);
+    const objectId = state.objectIds[item.name];
+    const ts = now();
+    if (!objectId) {
+      const created = await importObjectNow(input.remote, {
+        libraryId: input.libraryId,
+        parentFolderId: null,
+        name: item.name,
+        bytes,
+        type: inferObjectType(item.name, item.mimeGuess),
+        mimeType: item.mimeGuess ?? "application/octet-stream",
+      });
+      state.objectIds[item.name] = created.object.id;
+      state.seen[item.name] = item.size;
+      state.lastCommitAt[item.name] = ts;
+      imported.push(item.name);
+      continue;
+    }
+    if (policy.mode === "manual") {
+      skippedManual.push(item.name);
+      continue;
+    }
+    const last = state.lastCommitAt[item.name] ?? 0;
+    if (ts - last < policy.minIntervalMs) {
+      continue;
+    }
+    await commitSnapshot(input.remote, objectId, bytes, `inbox scan ${item.name}`);
+    state.seen[item.name] = item.size;
+    state.lastCommitAt[item.name] = ts;
+    snapshotted.push(item.name);
+  }
+  return { state, imported, snapshotted, skippedManual };
+}
+
+export async function scanPadInboxNow(input: {
+  invoke: TauriInvoke;
+  previous: InboxScanState;
+  remote: RemoteLockTarget;
+  libraryId: string;
+  policy?: SnapshotPolicy;
+  now?: () => number;
+}): Promise<{
+  items: InboxItem[];
+  result: Awaited<ReturnType<typeof applyInboxScan>>;
+}> {
+  const items = await listPadInbox(input.invoke);
+  const result = await applyInboxScan({
+    previous: input.previous,
+    items,
+    read: async (name) => bytesFromInvoke(await input.invoke("inbox_read", { name })),
+    remote: input.remote,
+    libraryId: input.libraryId,
+    policy: input.policy,
+    now: input.now,
+  });
+  return { items, result };
+}
+
 export function bytesFromInvoke(raw: unknown): Uint8Array {
   if (raw instanceof Uint8Array) {
     return raw;
@@ -319,6 +497,43 @@ export async function reportPadShareE2e(
     throw new Error("pad-share-e2e-status must not contain secrets");
   }
   await invoke("pad_share_e2e_report", { status });
+}
+
+export type PadScanE2eConfig = {
+  libraryId?: string;
+  libraryName?: string;
+  snapshotPolicy?: SnapshotPolicy;
+};
+
+export async function loadPadScanE2eConfig(
+  invoke: TauriInvoke | null = tauriInvokeFn(),
+): Promise<PadScanE2eConfig | null> {
+  if (!invoke) {
+    return null;
+  }
+  const value = (await invoke("pad_scan_e2e_config")) as PadScanE2eConfig | null;
+  if (!value) {
+    return null;
+  }
+  const json = JSON.stringify(value);
+  if (json.toLowerCase().includes("secretaccesskey") || json.includes("super-secret")) {
+    throw new Error("pad-scan-e2e.json must not contain secrets");
+  }
+  return value;
+}
+
+export async function reportPadScanE2e(
+  status: Record<string, unknown>,
+  invoke: TauriInvoke | null = tauriInvokeFn(),
+): Promise<void> {
+  if (!invoke) {
+    return;
+  }
+  const json = JSON.stringify(status);
+  if (json.toLowerCase().includes("secretaccesskey") || json.includes("super-secret")) {
+    throw new Error("pad-scan-e2e-status must not contain secrets");
+  }
+  await invoke("pad_scan_e2e_report", { status });
 }
 
 export { demoStore };

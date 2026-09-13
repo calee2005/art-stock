@@ -111,9 +111,13 @@ pub fn run() {
             pad_e2e::pad_share_e2e_report,
             pad_e2e::pad_wifi_e2e_config,
             pad_e2e::pad_wifi_e2e_report,
+            pad_e2e::pad_scan_e2e_config,
+            pad_e2e::pad_scan_e2e_report,
             inbox::inbox_list,
             inbox::inbox_read,
             inbox::inbox_remove,
+            inbox::inbox_scan_load,
+            inbox::inbox_scan_save,
             network_kind
         ])
         .run(tauri::generate_context!())

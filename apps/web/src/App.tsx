@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   createFolder,
   createLibrary,
@@ -111,6 +111,7 @@ import {
   type AssetItem,
   type AssetFolder,
   type Pin,
+  type SnapshotPolicy,
 } from "@art-stock/core";
 import {
   TabletShell,
@@ -135,15 +136,21 @@ import {
   importInboxToAssets,
   isAndroidPad,
   listPadInbox,
+  loadInboxScanState,
+  loadInboxScanStateHost,
   loadPadE2eConfig,
+  loadPadScanE2eConfig,
   loadPadShareE2eConfig,
   localStorageHasSecret,
   persistRemoteForm,
   redactSecrets,
   reportPadE2e,
+  reportPadScanE2e,
   reportPadShareE2e,
   restoreRemoteForm,
   runPadBrowseAndUpload,
+  saveInboxScanStateHost,
+  scanPadInboxNow,
   tauriInvokeFn,
   waitForTauriInvoke,
 } from "./pad-host.ts";
@@ -261,6 +268,9 @@ export function App() {
   const [assetSearch, setAssetSearch] = useState("");
   const [selectedAssetId, setSelectedAssetId] = useState("");
   const [inboxItems, setInboxItems] = useState<{ name: string; size: number; mimeGuess?: string }[]>([]);
+  const [inboxScan, setInboxScan] = useState(() => loadInboxScanState(storage));
+  const scanPolicyRef = useRef<SnapshotPolicy | undefined>(undefined);
+  const scanInboxRef = useRef<() => Promise<void>>(async () => undefined);
   const [wifiOnlyOriginals, setWifiOnlyOriginals] = useState(
     () => defaultOriginalDownloadPolicy(padHost).wifiOnly,
   );
@@ -504,6 +514,53 @@ export function App() {
             setStatus("蜂窝网络下已拦截原图下载，元数据仍可浏览");
           }
         }
+        const scanE2e = await loadPadScanE2eConfig(invoke);
+        if (scanE2e) {
+          scanPolicyRef.current = scanE2e.snapshotPolicy;
+          const listedLibs = await listLibraries(
+            activeStore(current),
+            formToConfig(current).prefix,
+          );
+          const library =
+            listedLibs.find((item) => item.id === scanE2e.libraryId) ??
+            listedLibs.find((item) => item.name === scanE2e.libraryName) ??
+            listedLibs.find((item) => item.name === (e2e?.libraryName ?? "")) ??
+            listedLibs[0];
+          if (!library) {
+            throw new Error("scan e2e needs a library");
+          }
+          setSelectedLibraryId(library.id);
+          setLibraries(listedLibs.map((item) => ({ id: item.id, name: item.name })));
+          const previous = await loadInboxScanStateHost(storage, invoke);
+          const { items, result } = await scanPadInboxNow({
+            invoke,
+            previous,
+            remote: {
+              store: activeStore(current),
+              prefix: formToConfig(current).prefix,
+              deviceId: device.deviceId,
+              deviceName: "pad",
+            },
+            libraryId: library.id,
+            policy: scanE2e.snapshotPolicy,
+          });
+          setInboxItems(items);
+          setInboxScan(result.state);
+          await saveInboxScanStateHost(storage, invoke, result.state);
+          setStatus(
+            `扫描：导入 ${result.imported.length}，快照 ${result.snapshotted.length}`,
+          );
+          await reportPadScanE2e(
+            {
+              ok: true,
+              imported: result.imported.length,
+              snapshotted: result.snapshotted.length,
+              skippedManual: result.skippedManual.length,
+              files: items.map((item) => item.name),
+            },
+            invoke,
+          );
+        }
       } catch (error) {
         const message = redactSecrets(
           error instanceof Error ? error.message : String(error),
@@ -517,12 +574,28 @@ export function App() {
         await reportPadShareE2e({ ok: false, error: message }, invoke).catch(
           () => undefined,
         );
+        await reportPadScanE2e({ ok: false, error: message }, invoke).catch(
+          () => undefined,
+        );
       }
     })();
     return () => {
       cancelled = true;
     };
   }, [device.deviceId]);
+
+  useEffect(() => {
+    if (!padHost) {
+      return;
+    }
+    const onVis = () => {
+      if (document.visibilityState === "visible") {
+        void scanInboxRef.current();
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [padHost]);
 
   function update<K extends keyof RemoteForm>(key: K, value: RemoteForm[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -1234,6 +1307,53 @@ export function App() {
     }
   }
 
+  async function onRefreshInbox() {
+    const invoke = tauriInvokeFn();
+    if (!invoke) {
+      setStatus("收件箱仅 Pad 可用");
+      return;
+    }
+    const itemsListed = await listPadInbox(invoke);
+    setInboxItems(itemsListed);
+    const previous = await loadInboxScanStateHost(storage, invoke);
+    const libraryId = selectedLibraryId ?? previous.libraryId;
+    if (!canWrite || !libraryId) {
+      setStatus(`收件箱 ${itemsListed.length} 项`);
+      return;
+    }
+    try {
+      const { items, result } = await scanPadInboxNow({
+        invoke,
+        previous,
+        remote: lockTarget(),
+        libraryId,
+        policy: scanPolicyRef.current,
+      });
+      setInboxItems(items);
+      setInboxScan(result.state);
+      await saveInboxScanStateHost(storage, invoke, result.state);
+      setStatus(
+        `扫描：导入 ${result.imported.length}，快照 ${result.snapshotted.length}`,
+      );
+      await refreshTree(libraryId);
+      const scanE2e = await loadPadScanE2eConfig(invoke);
+      if (scanE2e) {
+        await reportPadScanE2e(
+          {
+            ok: true,
+            imported: result.imported.length,
+            snapshotted: result.snapshotted.length,
+            skippedManual: result.skippedManual.length,
+            files: items.map((item) => item.name),
+          },
+          invoke,
+        );
+      }
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "收件箱扫描失败");
+    }
+  }
+
   async function onImportInbox(name: string) {
     if (!canWrite) {
       setStatus("只读模式：写入口已禁用");
@@ -1259,6 +1379,8 @@ export function App() {
       setStatus(error instanceof Error ? error.message : "收件箱导入失败");
     }
   }
+
+  scanInboxRef.current = onRefreshInbox;
 
   async function onCreateAssetFolder() {
     if (!canWrite) {
@@ -2420,7 +2542,20 @@ export function App() {
       {padHost ? (
         <section data-testid="pad-inbox">
           <h3>收件箱</h3>
-          <p>其它 App 分享的图片会先落到本机收件箱，再归档到素材库（持锁上传）。</p>
+          <p>
+            分享或外部导出落到本机收件箱。前台扫描或点刷新：新文件持锁导入资料库；同名体积变化按
+            snapshot 策略提交（默认 auto-on-save）。
+          </p>
+          <p>
+            <button type="button" data-testid="pad-inbox-refresh" onClick={() => void onRefreshInbox()}>
+              刷新收件箱
+            </button>
+          </p>
+          {inboxScan.libraryId ? (
+            <p data-testid="pad-inbox-scan-bound">
+              已绑定 {Object.keys(inboxScan.objectIds).length} 个收件文件
+            </p>
+          ) : null}
           <ul data-testid="pad-inbox-list">
             {inboxItems.length === 0 ? <li>收件箱为空</li> : null}
             {inboxItems.map((item) => (

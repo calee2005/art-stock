@@ -376,7 +376,7 @@
       "id": "F-045",
       "name": "Pad 收件箱扫描代替 file watch",
       "phase": "P4",
-      "status": "todo",
+      "status": "doing",
       "dependsOn": ["F-033", "F-040"],
       "apps": ["android"],
       "designDoc": "docs/03-features/16-android-pad.md",

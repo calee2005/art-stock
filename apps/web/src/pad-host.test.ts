@@ -5,19 +5,27 @@ import {
   defaultRemoteConfig,
   listAssets,
   listLibraries,
+  listSnapshots,
 } from "@art-stock/core";
 import { listenS3Mock } from "../../../packages/s3/src/mock-http.ts";
 import { S3ObjectStore } from "@art-stock/s3";
 import {
+  applyInboxScan,
   applyPadE2eConfig,
   assertPublicE2eConfig,
   bytesFromInvoke,
+  diffInbox,
+  emptyInboxScanState,
   importInboxToAssets,
+  INBOX_SCAN_STORAGE_KEY,
   isAndroidUserAgent,
+  loadInboxScanState,
   persistRemoteForm,
   redactSecrets,
   restoreRemoteForm,
   runPadBrowseAndUpload,
+  saveInboxScanState,
+  saveInboxScanStateHost,
   stripSecretsFromForm,
 } from "./pad-host.ts";
 import {
@@ -227,6 +235,97 @@ test("createLibrary uses the same store as listLibraries on the HTTP mock", asyn
     );
     const listed = await listLibraries(store, "");
     assert.equal(listed.map((item) => item.name).join(","), "浏览库");
+  } finally {
+    await mock.close();
+  }
+});
+
+test("inbox scan imports a new file then snapshots on change under the lock", async () => {
+  assert.deepEqual(
+    diffInbox(
+      [{ name: "a.png", size: 1 }],
+      [
+        { name: "a.png", size: 1 },
+        { name: "b.png", size: 2 },
+      ],
+    ).map((item) => item.name),
+    ["b.png"],
+  );
+  const mock = await listenS3Mock({ bucket: "art", accessKeyId: "AKIATEST", port: 0 });
+  const store = new S3ObjectStore(
+    defaultRemoteConfig({
+      id: "pad",
+      name: "pad",
+      endpoint: mock.url,
+      bucket: "art",
+      accessKeyId: "AKIATEST",
+      secretAccessKey: "super-secret-oss",
+      forcePathStyle: true,
+      mode: "readwrite",
+    }),
+  );
+  const remote = { store, prefix: "", deviceId: "pad-1", deviceName: "pad" };
+  try {
+    const library = await createLibrary(remote, "扫描库");
+    const files = new Map<string, Uint8Array>([["sketch.png", Uint8Array.from([1, 2, 3])]]);
+    const first = await applyInboxScan({
+      previous: emptyInboxScanState(),
+      items: [{ name: "sketch.png", size: 3 }],
+      read: async (name) => files.get(name) ?? new Uint8Array(),
+      remote,
+      libraryId: library.id,
+      now: () => 1_000,
+    });
+    assert.deepEqual(first.imported, ["sketch.png"]);
+    const objectId = first.state.objectIds["sketch.png"];
+    assert.ok(objectId);
+    files.set("sketch.png", Uint8Array.from([1, 2, 3, 4]));
+    const second = await applyInboxScan({
+      previous: first.state,
+      items: [{ name: "sketch.png", size: 4 }],
+      read: async (name) => files.get(name) ?? new Uint8Array(),
+      remote,
+      libraryId: library.id,
+      now: () => 7_000,
+    });
+    assert.deepEqual(second.snapshotted, ["sketch.png"]);
+    const snaps = await listSnapshots(store, "", objectId);
+    assert.ok(snaps.length >= 2);
+    const debounced = await applyInboxScan({
+      previous: second.state,
+      items: [{ name: "sketch.png", size: 5 }],
+      read: async () => Uint8Array.from([9, 9, 9, 9, 9]),
+      remote,
+      libraryId: library.id,
+      policy: { mode: "auto-on-save", minIntervalMs: 5000 },
+      now: () => (second.state.lastCommitAt["sketch.png"] ?? 0) + 10,
+    });
+    assert.deepEqual(debounced.snapshotted, []);
+    const storage = memoryStorage();
+    saveInboxScanState(storage, second.state);
+    assert.equal(storage.getItem(INBOX_SCAN_STORAGE_KEY)?.includes("secret"), false);
+    const restored = loadInboxScanState(storage);
+    assert.equal(restored.objectIds["sketch.png"], objectId);
+    let savedHost: { objectIds?: Record<string, string> } | undefined;
+    await saveInboxScanStateHost(
+      storage,
+      async (cmd, args) => {
+        if (cmd === "inbox_scan_save") {
+          savedHost = args?.state as { objectIds?: Record<string, string> };
+        }
+      },
+      second.state,
+    );
+    assert.equal(savedHost?.objectIds?.["sketch.png"], objectId);
+    const manual = await applyInboxScan({
+      previous: second.state,
+      items: [{ name: "sketch.png", size: 5 }],
+      read: async () => Uint8Array.from([9]),
+      remote,
+      libraryId: library.id,
+      policy: { mode: "manual", minIntervalMs: 0 },
+    });
+    assert.deepEqual(manual.skippedManual, ["sketch.png"]);
   } finally {
     await mock.close();
   }
