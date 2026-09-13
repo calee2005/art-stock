@@ -219,7 +219,7 @@
       "id": "F-021",
       "name": "Android Keystore 存远端密钥",
       "phase": "P2",
-      "status": "todo",
+      "status": "blocked",
       "dependsOn": ["F-005", "F-004"],
       "apps": ["android"],
       "designDoc": "docs/03-features/16-android-pad.md",
@@ -227,7 +227,7 @@
         "密钥不在明文 SharedPreferences 裸存",
         "杀进程后仍能读取并连接 OSS"
       ],
-      "notes": ""
+      "notes": "无 Android SDK / gen/android / 模拟器或真机；仅有 linux gnu target。无法接入 Keystore 或验证杀进程后读密钥连 OSS。改做下一条。"
     },
     {
       "id": "F-022",
