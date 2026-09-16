@@ -21,7 +21,7 @@
   --as-rail-w: 76px;
   --as-touch: 44px;
   --as-font: "Segoe UI", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
-  --as-heat-0: #122016;
+  --as-heat-0: #15261a;
   --as-heat-1: #1f4d28;
   --as-heat-2: #2d7a3a;
   --as-heat-3: #3da34c;
@@ -337,6 +337,7 @@ textarea {
   margin: 0 0 6px 36px;
   color: var(--as-muted);
   font-size: 12px;
+  width: calc(100% - 36px);
 }
 
 .as-heat-body {
@@ -359,10 +360,12 @@ textarea {
   grid-auto-flow: column;
   grid-template-rows: repeat(7, 12px);
   gap: 3px;
+  width: 100%;
 }
 
 .as-heat-cell {
-  width: 12px;
+  width: 100%;
+  min-width: 8px;
   height: 12px;
   border-radius: 2px;
   background: var(--as-heat-0);
@@ -376,6 +379,12 @@ textarea {
   margin-top: 8px;
   color: var(--as-faint);
   font-size: 11px;
+}
+
+.as-heat-legend .as-heat-cell {
+  width: 12px;
+  min-width: 12px;
+  flex: none;
 }
 
 .as-events-head {
@@ -800,6 +809,10 @@ textarea {
   display: grid;
   place-items: center;
   padding: 24px;
+}
+
+.as-modal-back[hidden] {
+  display: none !important;
 }
 
 .as-modal {

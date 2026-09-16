@@ -5,6 +5,8 @@ import {
   TOUCH_MIN_PX,
   NAV_ITEMS,
   navButtonStyle,
+  paneFromLocation,
+  pathForPane,
   pickAppShell,
   tabletChrome,
 } from "./shell.ts";
@@ -75,4 +77,13 @@ test("version graph forks a second lane for a named branch", () => {
   assert.notEqual(main.x, alt.x);
   assert.equal(alt.current, true);
   assert.ok(layout.labels.some((label) => label.branch === "主线"));
+});
+
+test("paneFromLocation maps /workspace and hashes", () => {
+  assert.equal(paneFromLocation("/workspace"), "library");
+  assert.equal(paneFromLocation("/assets"), "assets");
+  assert.equal(paneFromLocation("/kanban"), "kanban");
+  assert.equal(paneFromLocation("/"), "overview");
+  assert.equal(paneFromLocation("/", "#workspace"), "library");
+  assert.equal(pathForPane("library"), "/workspace");
 });

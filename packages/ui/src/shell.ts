@@ -36,6 +36,29 @@ export function pickAppShell(width: number, forceTablet = false): AppShellKind {
   return width <= TABLET_SHELL_MAX_PX ? "tablet" : "desktop";
 }
 
+export function paneFromLocation(pathname: string, hash = ""): NavId {
+  const hashToken = hash.replace(/^#/, "").trim().toLowerCase();
+  const pathToken = pathname.split("/").filter(Boolean).pop()?.toLowerCase() ?? "";
+  const token = hashToken || pathToken;
+  if (token === "workspace" || token === "library") {
+    return "library";
+  }
+  if (token === "assets" || token === "kanban" || token === "overview") {
+    return token;
+  }
+  return "overview";
+}
+
+export function pathForPane(pane: NavId): string {
+  if (pane === "library") {
+    return "/workspace";
+  }
+  if (pane === "overview") {
+    return "/";
+  }
+  return `/${pane}`;
+}
+
 export function navButtonStyle(): {
   minWidth: number;
   minHeight: number;

@@ -18,7 +18,10 @@ export function ActivityHeatmap({
     <div className="as-heat-card" data-testid="activity-heatmap">
       <div
         className="as-heat-months"
-        style={{ gridTemplateColumns: `repeat(${weekCount}, 12px)`, gap: 3 }}
+        style={{
+          gridTemplateColumns: `repeat(${weekCount}, minmax(8px, 1fr))`,
+          gap: 3,
+        }}
       >
         {months.map((month) => (
           <span
@@ -35,7 +38,10 @@ export function ActivityHeatmap({
             <span key={label}>{index === 0 || index === 3 || index === 6 ? label : ""}</span>
           ))}
         </div>
-        <div className="as-heat-grid" style={{ gridTemplateColumns: `repeat(${weekCount}, 12px)` }}>
+        <div
+          className="as-heat-grid"
+          style={{ gridTemplateColumns: `repeat(${weekCount}, minmax(8px, 1fr))` }}
+        >
           {days.map((day) => (
             <div
               key={day.iso}

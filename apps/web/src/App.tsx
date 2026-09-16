@@ -136,6 +136,8 @@ import {
 import {
   DesktopShell,
   TabletShell,
+  paneFromLocation,
+  pathForPane,
   pickAppShell,
   tabletChrome,
   type NavId,
@@ -291,7 +293,11 @@ export function App() {
     width: typeof window === "undefined" ? 1024 : window.innerWidth,
     height: typeof window === "undefined" ? 768 : window.innerHeight,
   }));
-  const [pane, setPane] = useState<NavId>("overview");
+  const [pane, setPane] = useState<NavId>(() =>
+    typeof window === "undefined"
+      ? "overview"
+      : paneFromLocation(window.location.pathname, window.location.hash),
+  );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSection, setSettingsSection] = useState<SettingsSection>("basic");
   const [eventRange, setEventRange] = useState<"7" | "30" | "all">("7");
@@ -386,6 +392,24 @@ export function App() {
     return () => {
       window.removeEventListener("resize", sync);
       window.removeEventListener("orientationchange", sync);
+    };
+  }, []);
+
+  useEffect(() => {
+    const sync = () =>
+      setPane(paneFromLocation(window.location.pathname, window.location.hash));
+    window.addEventListener("popstate", sync);
+    window.addEventListener("hashchange", sync);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSettingsOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("popstate", sync);
+      window.removeEventListener("hashchange", sync);
+      window.removeEventListener("keydown", onKey);
     };
   }, []);
 
@@ -3916,10 +3940,10 @@ export function App() {
 
   const onNavigate = (id: NavId) => {
     setPane(id);
-    document.getElementById(`pane-${id}`)?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
+    const next = pathForPane(id);
+    if (window.location.pathname !== next) {
+      window.history.pushState(null, "", next);
+    }
   };
 
   if (pickAppShell(viewport.width, padHost) === "tablet") {

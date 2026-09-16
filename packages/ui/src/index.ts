@@ -4,6 +4,8 @@ export {
   TABLET_SHELL_MAX_PX,
   TOUCH_MIN_PX,
   navButtonStyle,
+  paneFromLocation,
+  pathForPane,
   pickAppShell,
   tabletChrome,
   type AppShellKind,
