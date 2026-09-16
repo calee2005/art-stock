@@ -3,17 +3,25 @@ export const TOUCH_MIN_PX = 44;
 /** Web uses the tablet shell at this width and below. */
 export const TABLET_SHELL_MAX_PX = 899;
 
-export type NavId = "library" | "assets" | "kanban" | "remote";
+export type NavId = "overview" | "library" | "assets" | "kanban";
+
+export type SettingsSection = "basic" | "library" | "general";
 
 export type TabletChrome = "sidebar" | "bottom";
 
 export type AppShellKind = "desktop" | "tablet";
 
 export const NAV_ITEMS: { id: NavId; label: string }[] = [
-  { id: "library", label: "资料库" },
-  { id: "assets", label: "素材" },
+  { id: "overview", label: "总览" },
+  { id: "library", label: "工作区" },
+  { id: "assets", label: "素材库" },
   { id: "kanban", label: "看板" },
-  { id: "remote", label: "远端" },
+];
+
+export const SETTINGS_NAV: { id: SettingsSection; label: string }[] = [
+  { id: "basic", label: "基本" },
+  { id: "library", label: "资料库" },
+  { id: "general", label: "通用" },
 ];
 
 /** Landscape → left sidebar; portrait → bottom bar. */
@@ -26,6 +34,29 @@ export function pickAppShell(width: number, forceTablet = false): AppShellKind {
     return "tablet";
   }
   return width <= TABLET_SHELL_MAX_PX ? "tablet" : "desktop";
+}
+
+export function paneFromLocation(pathname: string, hash = ""): NavId {
+  const hashToken = hash.replace(/^#/, "").trim().toLowerCase();
+  const pathToken = pathname.split("/").filter(Boolean).pop()?.toLowerCase() ?? "";
+  const token = hashToken || pathToken;
+  if (token === "workspace" || token === "library") {
+    return "library";
+  }
+  if (token === "assets" || token === "kanban" || token === "overview") {
+    return token;
+  }
+  return "overview";
+}
+
+export function pathForPane(pane: NavId): string {
+  if (pane === "library") {
+    return "/workspace";
+  }
+  if (pane === "overview") {
+    return "/";
+  }
+  return `/${pane}`;
 }
 
 export function navButtonStyle(): {

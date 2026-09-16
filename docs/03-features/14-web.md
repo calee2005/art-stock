@@ -14,9 +14,9 @@
 
 ## UI
 
-- 首次进入：远端配置向导（endpoint、bucket、key、path-style）+ CORS 失败时的说明链接。
-- 其后与桌面同构，窄屏 Tablet shell。
-- XSS 警告条（可关闭到本机 session）：密钥存在浏览器。
+- 首次进入：配置模态中的远端表单（endpoint、bucket、key、path-style）+ CORS 失败时的说明链接。
+- 其后与桌面同构：总览 / 工作区 / 素材库 / 看板；齿轮打开配置模态。窄屏 Tablet shell。
+- XSS 警告条（可关闭到本机 session）：密钥存在浏览器；配置模态「基本」里始终可再看。
 
 ## 同步与锁
 

@@ -11,7 +11,7 @@
     "dev:web": "turbo run dev --filter=@art-stock/web",
     "dev:desktop": "turbo run dev --filter=@art-stock/desktop",
     "build:web": "turbo run build --filter=@art-stock/web",
-    "test": "turbo run test --filter=@art-stock/core --filter=@art-stock/s3 --filter=@art-stock/web",
+    "test": "turbo run test --filter=@art-stock/core --filter=@art-stock/s3 --filter=@art-stock/web --filter=@art-stock/ui",
     "lint": "turbo run lint"
   },
   "devDependencies": {
