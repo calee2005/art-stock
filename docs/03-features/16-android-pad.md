@@ -13,7 +13,7 @@ Pad 与桌面同等优先级，不是缩小窗口。通勤与外出创作的主�
 - 与桌面共用 `apps/desktop` Tauri 工程。
 - `lib.rs`：`#[cfg_attr(mobile, tauri::mobile_entry_point)]`。
 - Android 工程：`src-tauri/gen/android`。
-- `packages/ui` **Tablet shell**：横屏左侧栏 + 内容；竖屏底栏 + 全宽；触控热区 ≥ 44px。手写笔 hover/按下能检测则用，否则触摸。
+- `packages/ui` **Tablet shell**：横屏左侧图标轨（总览 / 工作区 / 素材库 / 看板，底齿轮）+ 内容；竖屏底栏四项 + 全宽；触控热区 ≥ 44px。手写笔 hover/按下能检测则用，否则触摸。`data-nav="library"` 仍指向工作区。
 - 权限：`capabilities/mobile.json` 与 desktop 分开。
 - 条件编译：`#[cfg(desktop)]` / `#[cfg(mobile)]`。
 

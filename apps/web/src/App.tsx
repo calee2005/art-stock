@@ -26,6 +26,7 @@ import {
   listLists,
   listItems,
   createItem,
+  createList,
   moveItem,
   commitSnapshot,
   createBranch,
@@ -133,11 +134,14 @@ import {
   type VisionTagSettings,
 } from "@art-stock/core";
 import {
+  DesktopShell,
   TabletShell,
   pickAppShell,
   tabletChrome,
   type NavId,
+  type SettingsSection,
 } from "@art-stock/ui";
+import { AppPage, type TimelineEvent } from "./AppPage.tsx";
 import {
   deviceIdentity,
   emptyRemoteForm,
@@ -287,7 +291,15 @@ export function App() {
     width: typeof window === "undefined" ? 1024 : window.innerWidth,
     height: typeof window === "undefined" ? 768 : window.innerHeight,
   }));
-  const [pane, setPane] = useState<NavId>("library");
+  const [pane, setPane] = useState<NavId>("overview");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>("basic");
+  const [eventRange, setEventRange] = useState<"7" | "30" | "all">("7");
+  const [assetFormat, setAssetFormat] = useState("all");
+  const [smartFolder, setSmartFolder] = useState<"all" | "recent7" | "random30">("all");
+  const [quickItem, setQuickItem] = useState<Record<string, string>>({});
+  const [remoteReady, setRemoteReady] = useState(false);
+  const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
   const [assets, setAssets] = useState<AssetItem[]>([]);
   const [assetFolders, setAssetFolders] = useState<AssetFolder[]>([]);
   const [newAssetFolderName, setNewAssetFolderName] = useState("");
@@ -762,6 +774,7 @@ export function App() {
         return;
       }
       setCorsBlocked(false);
+      setRemoteReady(true);
       setStatus(`探测成功，协议根 ${result.protocolRoot}`);
     });
   }
@@ -1699,12 +1712,409 @@ export function App() {
     await openBoard(selectedBoardId);
   }
 
+  async function onCreateList() {
+    if (!canWrite || !selectedBoardId) {
+      setStatus("请先打开 Board");
+      return;
+    }
+    const created = await createList(lockTarget(), selectedBoardId, "新列表");
+    setStatus(`已创建 List ${created.name}`);
+    await openBoard(selectedBoardId);
+  }
+
+  async function onQuickAdd(listId: string) {
+    const title = (quickItem[listId] ?? "").trim();
+    if (!canWrite || !selectedBoardId || !title) {
+      return;
+    }
+    await createItem(lockTarget(), { boardId: selectedBoardId, listId, title });
+    setQuickItem((current) => ({ ...current, [listId]: "" }));
+    setStatus(`已创建 Item ${title}`);
+    await openBoard(selectedBoardId);
+  }
+
+  function selectTreeNode(node: TreeNode) {
+    setSelectedNodeId(node.id);
+    if (node.objectId) {
+      void refreshSnapshots(node.objectId);
+      if (/\.(md|markdown)$/i.test(node.name)) {
+        setPdfViewer(null);
+        setMindDoc(null);
+        setDbDoc(null);
+        void loadMarkdown(node.objectId);
+      } else if (isPdfName(node.name)) {
+        setMdSource("");
+        setMdHtml("");
+        setMindDoc(null);
+        setDbDoc(null);
+        void loadPdfPlaceholder(node.objectId);
+      } else if (isMindmapName(node.name)) {
+        setMdSource("");
+        setMdHtml("");
+        setPdfViewer(null);
+        setDbDoc(null);
+        void loadMindmap(node.objectId);
+      } else if (isDatabaseName(node.name)) {
+        setMdSource("");
+        setMdHtml("");
+        setPdfViewer(null);
+        setMindDoc(null);
+        void loadDatabaseFile(node.objectId);
+      } else {
+        setMdSource("");
+        setMdHtml("");
+        setPdfViewer(null);
+        setMindDoc(null);
+        setDbDoc(null);
+      }
+    } else {
+      clearVersionUi();
+    }
+  }
+
+  const timelineEvents = useMemo((): TimelineEvent[] => {
+    const events: TimelineEvent[] = [];
+    for (const snap of snapshots) {
+      const node = treeNodes.find((item) => item.objectId);
+      events.push({
+        id: `snap-${snap.id}`,
+        title: `上传版本到 ${node?.name ?? "画稿"}`,
+        time: snap.createdAt,
+        version: snap.message || snap.id.slice(0, 5),
+        tag: snap.branch !== "main" ? snap.branch : undefined,
+      });
+    }
+    for (const asset of assets) {
+      events.push({
+        id: `asset-${asset.id}`,
+        title: `导入素材 ${asset.name}`,
+        time: asset.createdAt,
+      });
+    }
+    for (const lib of libraries) {
+      events.push({
+        id: `lib-${lib.id}`,
+        title: `资料库 ${lib.name}`,
+        time: new Date().toISOString(),
+      });
+    }
+    const cutoff =
+      eventRange === "all"
+        ? 0
+        : Date.now() - Number(eventRange) * 24 * 3600 * 1000;
+    return events
+      .filter((event) => new Date(event.time).getTime() >= cutoff)
+      .sort((a, b) => b.time.localeCompare(a.time))
+      .slice(0, 40);
+  }, [snapshots, assets, libraries, treeNodes, eventRange]);
+
+  const activityTimestamps = useMemo(() => {
+    return [
+      ...snapshots.map((item) => item.createdAt),
+      ...assets.map((item) => item.createdAt),
+      ...items.map((item) => item.updatedAt),
+    ];
+  }, [snapshots, assets, items]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if (!hasCredentials(form)) {
+        return;
+      }
+      const prefix = formToConfig(form).prefix;
+      const store = activeStore(form);
+      const next: Record<string, string> = {};
+      for (const asset of assets) {
+        try {
+          const thumb = await store.get(assetThumbKey(prefix, asset.id));
+          if (thumb) {
+            next[asset.id] = URL.createObjectURL(
+              new Blob([Uint8Array.from(thumb.body)], { type: "image/webp" }),
+            );
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      if (!cancelled) {
+        setThumbUrls(next);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [assets, form]);
+
+  const selectedFile = treeNodes.find((node) => node.id === selectedNodeId);
+  const editor = selectedFile?.objectId ? (
+    <div className="as-form">
+      {mdSource || mdHtml ? <p>Markdown</p> : null}
+      {pdfViewer ? <p>PDF {pdfViewer.currentPage}/{pdfViewer.pageCount}</p> : null}
+      {mindDoc ? <p>思维导图</p> : null}
+      {dbDoc ? <p>数据表</p> : null}
+      {!mdSource && !pdfViewer && !mindDoc && !dbDoc ? (
+        <span>🖼</span>
+      ) : null}
+    </div>
+  ) : (
+    <span>🖼</span>
+  );
+
+  const chromePage = (
+    <AppPage
+      padHost={padHost}
+      pane={pane}
+      settingsOpen={settingsOpen}
+      settingsSection={settingsSection}
+      onSettingsSection={setSettingsSection}
+      onCloseSettings={() => setSettingsOpen(false)}
+      onOpenSettings={() => {
+        setSettingsOpen(true);
+        setSettingsSection("basic");
+      }}
+      status={status}
+      conflictCount={conflictBadgeCount(conflictCount, 0)}
+      pending={pendingCount(sync)}
+      paused={sync.paused}
+      canWrite={canWrite}
+      xssDismissed={xssDismissed}
+      onDismissXss={() => {
+        sessionStorage.setItem("art-stock.xss-ok", "1");
+        setXssDismissed(true);
+      }}
+      corsBlocked={corsBlocked}
+      corsMessage={CORS_ERROR_MESSAGE}
+      corsJson={corsJson}
+      libraries={libraries}
+      assets={assets}
+      form={form}
+      remoteReady={remoteReady}
+      timestamps={activityTimestamps}
+      events={timelineEvents}
+      eventRange={eventRange}
+      onEventRange={setEventRange}
+      selectedLibraryId={selectedLibraryId}
+      onOpenLibrary={(id) => {
+        setSelectedLibraryId(id);
+        void refreshTree(id);
+      }}
+      newLibraryName={newLibraryName}
+      onNewLibraryName={setNewLibraryName}
+      onCreateLibrary={() => void onCreateLibrary()}
+      onRenameLibrary={(id, name) => void onRenameLibrary(id, name)}
+      treeNodes={treeNodes}
+      selectedNodeId={selectedNodeId}
+      onSelectNode={selectTreeNode}
+      snapshots={snapshots}
+      branches={branches}
+      activeBranch={activeBranch}
+      onActiveBranch={setActiveBranch}
+      onCommitSnapshot={() => void onCommitSnapshot()}
+      onCreateBranch={() => void onCreateBranch()}
+      newBranchName={newBranchName}
+      onNewBranchName={setNewBranchName}
+      snapshotMessage={snapshotMessage}
+      onSnapshotMessage={setSnapshotMessage}
+      snapshotBody={snapshotBody}
+      onSnapshotBody={setSnapshotBody}
+      onRollback={(id) => void onRollback(id)}
+      editor={editor}
+      newFolderName={newFolderName}
+      onNewFolderName={setNewFolderName}
+      folderParentId={folderParentId}
+      onFolderParentId={setFolderParentId}
+      onCreateFolder={() => void onCreateFolder()}
+      onPickFile={(file) => void onPickFile(file)}
+      assetFolders={assetFolders}
+      assetFolderId={assetFolderId}
+      onAssetFolderId={setAssetFolderId}
+      newAssetFolderName={newAssetFolderName}
+      onNewAssetFolderName={setNewAssetFolderName}
+      onCreateAssetFolder={() => void onCreateAssetFolder()}
+      onPickAsset={(file) => void onPickAsset(file)}
+      assetSearch={assetSearch}
+      onAssetSearch={setAssetSearch}
+      assetTagFilter={assetTagFilter}
+      onAssetTagFilter={setAssetTagFilter}
+      assetFormat={assetFormat}
+      onAssetFormat={setAssetFormat}
+      smartFolder={smartFolder}
+      onSmartFolder={setSmartFolder}
+      selectedAssetId={selectedAssetId}
+      onSelectAsset={setSelectedAssetId}
+      thumbUrls={thumbUrls}
+      workspaces={workspaces}
+      selectedWorkspaceId={selectedWorkspaceId}
+      onSelectWorkspace={(id) => {
+        setSelectedWorkspaceId(id);
+        const ws = workspaces.find((item) => item.id === id);
+        const boardId = ws?.boardIds[0];
+        if (boardId) {
+          void openBoard(boardId);
+        }
+      }}
+      newWorkspaceName={newWorkspaceName}
+      onNewWorkspaceName={setNewWorkspaceName}
+      onCreateWorkspace={() => void onCreateWorkspace()}
+      selectedBoardId={selectedBoardId}
+      boardsOfWorkspace={[]}
+      onOpenBoard={(id) => void openBoard(id)}
+      newBoardName={newBoardName}
+      onNewBoardName={setNewBoardName}
+      onCreateBoard={() => void onCreateBoard()}
+      lists={lists}
+      items={items}
+      onDropItem={(listId, itemId) => void onDropItem(listId, itemId)}
+      onOpenItem={setDetailItemId}
+      detailItemId={detailItemId}
+      quickItem={quickItem}
+      onQuickItem={(listId, value) =>
+        setQuickItem((current) => ({ ...current, [listId]: value }))
+      }
+      onQuickAdd={(listId) => void onQuickAdd(listId)}
+      onCreateList={() => void onCreateList()}
+      settingsBasic={
+        <>
+          <p>
+            桶内目录（可空）。Art Stock 使用 <code>{preview}</code>
+          </p>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void save();
+            }}
+          >
+            <label>
+              名称
+              <input value={form.name} onChange={(e) => update("name", e.target.value)} />
+            </label>
+            <label>
+              endpoint
+              <input
+                data-testid="pad-endpoint"
+                value={form.endpoint}
+                onChange={(e) => update("endpoint", e.target.value)}
+              />
+            </label>
+            <label>
+              bucket
+              <input value={form.bucket} onChange={(e) => update("bucket", e.target.value)} />
+            </label>
+            <label>
+              accessKeyId
+              <input
+                value={form.accessKeyId}
+                onChange={(e) => update("accessKeyId", e.target.value)}
+                autoComplete="off"
+              />
+            </label>
+            <label>
+              secretAccessKey
+              <input
+                type="password"
+                value={form.secretAccessKey}
+                onChange={(e) => update("secretAccessKey", e.target.value)}
+                autoComplete="off"
+              />
+            </label>
+            <label>
+              prefix
+              <input
+                value={form.prefix}
+                onChange={(e) => update("prefix", e.target.value)}
+                placeholder="可空，如 art/"
+              />
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={form.forcePathStyle}
+                onChange={(e) => update("forcePathStyle", e.target.checked)}
+              />
+              path-style（NAS/MinIO 通常勾选）
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={form.mode === "readonly"}
+                onChange={(e) => update("mode", e.target.checked ? "readonly" : "readwrite")}
+              />
+              只读
+            </label>
+            <button type="submit" className="as-btn" data-testid="pad-save-oss">
+              保存
+            </button>
+          </form>
+          <p>
+            <button type="button" className="as-btn" onClick={() => void probe()}>
+              探测条件写
+            </button>
+            <button type="button" className="as-btn-ghost as-btn" onClick={() => void onCheckCors()}>
+              检查 CORS
+            </button>
+          </p>
+        </>
+      }
+      settingsLibrary={
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void onCreateLibrary();
+          }}
+        >
+          <label>
+            新资料库名称
+            <input
+              data-testid="pad-library-name"
+              value={newLibraryName}
+              onChange={(e) => setNewLibraryName(e.target.value)}
+            />
+          </label>
+          <button type="submit" className="as-btn" data-testid="pad-create-library" disabled={!canWrite}>
+            创建
+          </button>
+          <ul data-testid="pad-libraries">
+            {libraries.map((lib) => (
+              <li key={lib.id}>{lib.name}</li>
+            ))}
+          </ul>
+        </form>
+      }
+      settingsGeneral={
+        <>
+          <p>
+            <label>
+              <input
+                type="checkbox"
+                checked={sync.paused}
+                onChange={(e) => {
+                  const paused = e.target.checked;
+                  setSyncPaused(sync, paused);
+                  setSync({ ...sync, paused, queue: [...sync.queue] });
+                }}
+              />
+              暂停同步
+            </label>
+          </p>
+          <p>
+            <button type="button" className="as-btn" onClick={() => void onWriteEink()} disabled={!canWrite}>
+              写入 eink config 与 summary
+            </button>
+          </p>
+        </>
+      }
+    />
+  );
+
   const page = (
     <div
       data-testid={padHost ? "pad-root" : "app-root"}
-      style={{ fontFamily: "system-ui, sans-serif", maxWidth: 720, margin: "2rem auto", padding: "0 1rem" }}
+      className="as-app"
     >
-      <h1 id="pane-remote">Art Stock Web</h1>
+      {chromePage}
+      <div className="as-legacy" aria-hidden="true">
+      <h1>Art Stock Web</h1>
       <p role="status" style={{ background: "#eef2ff", padding: "0.5rem 0.75rem" }}>
         状态栏：待提交 {pendingCount(sync)}
         {sync.paused ? " · 已暂停" : " · 同步开启"}
@@ -1764,7 +2174,7 @@ export function App() {
         <label>
           endpoint
           <input
-            data-testid="pad-endpoint"
+            data-testid="pad-endpoint-legacy"
             value={form.endpoint}
             onChange={(e) => update("endpoint", e.target.value)}
           />
@@ -1806,7 +2216,7 @@ export function App() {
           />
           只读
         </label>
-        <button type="submit" data-testid="pad-save-oss">
+        <button type="submit" data-testid="pad-save-oss-legacy">
           保存
         </button>
       </form>
@@ -1817,7 +2227,7 @@ export function App() {
       </p>
       {corsBlocked ? (
         <div
-          data-testid="cors-error"
+          data-testid="cors-error-legacy"
           role="alert"
           style={{ background: "#fef2f2", padding: "0.75rem", marginBottom: "0.75rem" }}
         >
@@ -2003,9 +2413,9 @@ export function App() {
           </button>
         </p>
       </section>
-      <p data-testid="pad-status">
+      <p data-testid="pad-status-legacy">
         {status}{" "}
-        <span data-testid="conflict-badge">
+        <span data-testid="conflict-badge-legacy">
           冲突 {conflictBadgeCount(conflictCount, 0)}
         </span>
       </p>
@@ -2014,7 +2424,7 @@ export function App() {
           <li key={key}>{key}</li>
         ))}
       </ul>
-      <h2 id="pane-library">资料库</h2>
+      <h2>资料库</h2>
       <p>
         <button type="button" onClick={() => void refreshLibraries()}>
           刷新列表
@@ -2029,17 +2439,17 @@ export function App() {
         <label>
           新资料库名称
           <input
-            data-testid="pad-library-name"
+            data-testid="pad-library-name-legacy"
             value={newLibraryName}
             onChange={(e) => setNewLibraryName(e.target.value)}
             placeholder="例如 角色设定"
           />
         </label>
-        <button type="submit" data-testid="pad-create-library" disabled={!canWrite}>
+        <button type="submit" data-testid="pad-create-library-legacy" disabled={!canWrite}>
           创建
         </button>
       </form>
-      <ul data-testid="pad-libraries">
+      <ul data-testid="pad-libraries-legacy">
         {libraries.map((lib) => (
           <li key={lib.id}>
             <input
@@ -2843,7 +3253,7 @@ export function App() {
           <p>
             导入文件
             <input
-              data-testid="pad-upload"
+              data-testid="pad-upload-legacy"
               type="file"
               disabled={!selectedLibraryId}
               onChange={(e) => {
@@ -2907,7 +3317,7 @@ export function App() {
           </p>
         </section>
       ) : null}
-      <h2 id="pane-assets">素材</h2>
+      <h2>素材</h2>
       <p>
         <label>
           <input
@@ -3061,7 +3471,7 @@ export function App() {
         <label>
           MiniSearch
           <input
-            data-testid="asset-search"
+            data-testid="asset-search-legacy"
             value={assetSearch}
             onChange={(e) => setAssetSearch(e.target.value)}
             placeholder="名称或标签"
@@ -3260,7 +3670,7 @@ export function App() {
         ) : null}
         </>
       ) : null}
-      <h2 id="pane-kanban">看板</h2>
+      <h2>看板</h2>
       <p>
         <button type="button" onClick={() => void refreshKanban()}>
           刷新 Workspace
@@ -3453,7 +3863,7 @@ export function App() {
           </form>
         </section>
       ) : null}
-      <h2 id="pane-eink">墨水屏摘要</h2>
+      <h2>墨水屏摘要</h2>
       <p>
         客户端持锁写 <code>device/eink/config.json</code> 与{" "}
         <code>summary.json</code>。固件只 GET 这两键，不持写锁、不 List 全桶。
@@ -3501,24 +3911,44 @@ export function App() {
         }
       `}</style>
     </div>
+    </div>
   );
+
+  const onNavigate = (id: NavId) => {
+    setPane(id);
+    document.getElementById(`pane-${id}`)?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
 
   if (pickAppShell(viewport.width, padHost) === "tablet") {
     return (
       <TabletShell
         chrome={tabletChrome(viewport.width, viewport.height)}
         active={pane}
-        onNavigate={(id) => {
-          setPane(id);
-          document.getElementById(`pane-${id}`)?.scrollIntoView({
-            behavior: "smooth",
-            block: "start",
-          });
+        onNavigate={onNavigate}
+        onOpenSettings={() => {
+          setSettingsOpen(true);
+          setSettingsSection("basic");
         }}
+        settingsOpen={settingsOpen}
       >
         {page}
       </TabletShell>
     );
   }
-  return page;
+  return (
+    <DesktopShell
+      active={pane}
+      onNavigate={onNavigate}
+      onOpenSettings={() => {
+        setSettingsOpen(true);
+        setSettingsSection("basic");
+      }}
+      settingsOpen={settingsOpen}
+    >
+      {page}
+    </DesktopShell>
+  );
 }

@@ -22,6 +22,7 @@ Windows / macOS。与 Pad 共用 Tauri 工程，本文件只描述 **desktop cfg
 
 ## UI
 
+- 壳见 [架构 §7](../01-architecture.md)：左侧图标轨 + 总览/工作区/素材库/看板；配置为齿轮模态。
 - 系统拖拽到窗口导入资料库或素材库。
 - 监视列表：绑定 artwork object ↔ 本地路径。
 - 托盘非必须（首版可无）。

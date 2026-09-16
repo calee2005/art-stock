@@ -96,11 +96,11 @@ workspace 列表及各 workspace 下 board id，供侧栏与 eink。
 
 ## UI
 
-- **桌面**：左栏 Workspace → 网格 Board → 横向 List/Item 标准看板。Item 点开抽屉：描述、清单、附件、封面。
-- **Pad**：Workspace/Board 大卡片；Board 内横向滑 List；Item 全屏详情。
-- **Web**：宽屏同桌面，窄屏同 Pad。
+- **桌面 / Web 宽屏**：顶栏中央 Workspace 下拉（可切 Board）；主区横向 List 列。列头为名称 + 列表备注；卡片为白底勾选+标题；列底「添加新事项」；最右侧 + 新建 List。四层不变：Workspace → Board → List → Item。
+- **Pad / 窄屏**：同一顶栏下拉；Board 内横向滑 List；Item 全屏详情。
 - **墨水屏**：不画整板。按 `device/eink/config.json` 的 workspace/board/`listNames` 抽 Item。
-- 创建 Workspace、Board、默认三列（待办/进行中/完成）的模板。
+- 创建 Workspace、Board、默认三列（待办/进行中/完成）的模板。Workspace/Board 的管理入口也可在配置模态。
+- Item 点开抽屉：描述、清单、附件、封面。
 
 ## 同步与 MCP
 

@@ -3,10 +3,13 @@ import { test } from "node:test";
 import {
   TABLET_SHELL_MAX_PX,
   TOUCH_MIN_PX,
+  NAV_ITEMS,
   navButtonStyle,
   pickAppShell,
   tabletChrome,
 } from "./shell.ts";
+import { buildHeatmapDays, heatLevel, isoDay } from "./heatmap.ts";
+import { layoutVersionGraph } from "./version-graph.ts";
 
 test("landscape uses left sidebar chrome", () => {
   assert.equal(tabletChrome(1280, 800), "sidebar");
@@ -34,4 +37,42 @@ test("primary nav touch targets are at least 44px", () => {
   const style = navButtonStyle();
   assert.ok(style.minWidth >= 44);
   assert.ok(style.minHeight >= 44);
+});
+
+test("nav items match prototype: overview workspace assets kanban", () => {
+  assert.deepEqual(
+    NAV_ITEMS.map((item) => item.id),
+    ["overview", "library", "assets", "kanban"],
+  );
+  assert.equal(NAV_ITEMS.find((item) => item.id === "library")?.label, "工作区");
+});
+
+test("heatmap counts local-day timestamps into cells", () => {
+  const now = new Date(2026, 8, 16);
+  const days = buildHeatmapDays(now, ["2026-09-16T12:00:00"], 2);
+  const hit = days.find((day) => day.iso === isoDay(now));
+  assert.equal(hit?.count, 1);
+  assert.equal(heatLevel(0), 0);
+  assert.equal(heatLevel(8), 4);
+});
+
+test("version graph forks a second lane for a named branch", () => {
+  const layout = layoutVersionGraph(
+    [
+      { id: "a", parentSnapshotId: null, branch: "main", message: "root" },
+      { id: "b", parentSnapshotId: "a", branch: "main", message: "m" },
+      { id: "c", parentSnapshotId: "a", branch: "尝试A", message: "alt" },
+    ],
+    [
+      { name: "main", snapshotId: "b" },
+      { name: "尝试A", snapshotId: "c" },
+    ],
+    "c",
+  );
+  const main = layout.nodes.find((node) => node.id === "b");
+  const alt = layout.nodes.find((node) => node.id === "c");
+  assert.ok(main && alt);
+  assert.notEqual(main.x, alt.x);
+  assert.equal(alt.current, true);
+  assert.ok(layout.labels.some((label) => label.branch === "主线"));
 });
